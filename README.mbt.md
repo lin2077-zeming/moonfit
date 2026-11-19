@@ -121,6 +121,7 @@ byte-exact round-trip gate honest.
 
 ```text
 src/units/     native-unit types and the conversions between them
+src/fit/       FIT container layer: CRC-16, file header, the sixteen base types
 cmd/moonfit/   command line entry point
 scripts/       corpus tooling and the CI gates, each with a self-test
 docs/          boundaries, verification gates, and the measured corpus profile

@@ -19,6 +19,15 @@ Keep a Changelog, and the version numbers follow semantic versioning.
 - ISO-8601 UTC rendering of a FIT timestamp, covering the whole uint32 range,
   leap days, the pre-epoch floor-division branch and the unrepresentable-year
   branch.
+- `src/fit`: the FIT container layer. Protocol CRC-16 with the measured coverage
+  rules (file CRC spans `[0, len-2)` including the header-CRC bytes; header CRC
+  spans `[0, 12)`), file-header parsing for both 12-byte and 14-byte headers with
+  signature / size / header-CRC validation, and all sixteen base types with
+  endian-aware readers and writers plus per-type invalid-value detection.
+  Signed narrow integers are sign-extended from their own width, and the
+  invalid conventions (signed max-positive, unsigned all-ones, `z` types zero,
+  string leading-zero) are compared on the decoded bit pattern so they are
+  endian-correct.
 - `cmd/moonfit` with `version` and `units` subcommands, built on
   `moonbitlang/core/argparse`. Exit 0 on success, exit 2 on a usage error,
   diagnostics on stderr.
