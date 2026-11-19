@@ -1,0 +1,25 @@
+# Line endings: normalize text to LF everywhere.
+* text=auto eol=lf
+*.mbt text eol=lf
+*.mbti text eol=lf
+*.md text eol=lf
+*.pkg text eol=lf
+*.mod text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+
+# CRITICAL: FIT files are binary. Without this, `text=auto` may apply EOL
+# normalization and the committed blob stops being byte-identical to the
+# original device export, permanently breaking the G2 SHA-256 round-trip gate.
+# Changing this attribute later does NOT repair blobs already in history.
+*.fit binary
+*.fit.gz binary
+corpus/**/*.fit binary
+
+# XML corpus is text, but must keep LF so golden diffs stay stable.
+*.tcx text eol=lf
+*.gpx text eol=lf
+*.kml text eol=lf
