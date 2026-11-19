@@ -1,0 +1,180 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/src/units"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn altitude_raw(Int64) -> AltitudeRaw
+
+pub fn altitude_raw_of_decimetre(Decimetre) -> AltitudeRaw?
+
+pub fn altitude_raw_value(AltitudeRaw) -> Int64
+
+pub fn bpm(Int64) -> Bpm
+
+pub fn bpm_value(Bpm) -> Int64
+
+pub fn celsius(Int64) -> Celsius
+
+pub fn celsius_value(Celsius) -> Int64
+
+pub fn centi_percent(Int64) -> CentiPercent
+
+pub fn centi_percent_value(CentiPercent) -> Int64
+
+pub fn centimetre(Int64) -> Centimetre
+
+pub fn centimetre_value(Centimetre) -> Int64
+
+pub fn decimetre(Int64) -> Decimetre
+
+pub fn decimetre_of_altitude_raw(AltitudeRaw) -> Decimetre
+
+pub fn decimetre_value(Decimetre) -> Int64
+
+pub fn degrees_of_semicircle(Semicircle) -> Degrees
+
+pub fn degrees_value(Degrees) -> Double
+
+pub let fit_epoch_unix : Int64
+
+pub fn fit_timestamp(Int64) -> FitTimestamp
+
+pub fn fit_timestamp_of_unix(UnixSecond) -> FitTimestamp
+
+pub fn fit_timestamp_value(FitTimestamp) -> Int64
+
+pub fn iso8601_of_fit_timestamp(FitTimestamp) -> String?
+
+pub fn iso8601_of_unix_second(UnixSecond) -> String?
+
+pub fn metre_of_centimetre(Centimetre) -> Metre
+
+pub fn metre_of_decimetre(Decimetre) -> Metre
+
+pub fn metre_per_second_of_millimetre_per_second(MillimetrePerSecond) -> MetrePerSecond
+
+pub fn metre_per_second_value(MetrePerSecond) -> Double
+
+pub fn metre_value(Metre) -> Double
+
+pub fn millimetre_per_second(Int64) -> MillimetrePerSecond
+
+pub fn millimetre_per_second_value(MillimetrePerSecond) -> Int64
+
+pub fn millisecond(Int64) -> Millisecond
+
+pub fn millisecond_value(Millisecond) -> Int64
+
+pub fn percent_of_centi_percent(CentiPercent) -> Percent
+
+pub fn percent_value(Percent) -> Double
+
+pub fn rpm(Int64) -> Rpm
+
+pub fn rpm_value(Rpm) -> Int64
+
+pub fn second_of_millisecond(Millisecond) -> Second
+
+pub fn second_value(Second) -> Double
+
+pub fn semicircle(Int64) -> Semicircle
+
+pub fn semicircle_value(Semicircle) -> Int64
+
+pub let semicircles_per_half_turn : Double
+
+pub fn unix_of_fit_timestamp(FitTimestamp) -> UnixSecond
+
+pub fn unix_second(Int64) -> UnixSecond
+
+pub fn unix_second_value(UnixSecond) -> Int64
+
+pub fn watt(Int64) -> Watt
+
+pub fn watt_value(Watt) -> Int64
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub struct AltitudeRaw {
+  value : Int64
+}
+pub fn AltitudeRaw::equal(Self, Self) -> Bool
+pub fn AltitudeRaw::not_equal(Self, Self) -> Bool
+pub fn AltitudeRaw::to_repr(Self) -> @debug.Repr
+
+pub struct Bpm {
+  value : Int64
+}
+
+pub struct Celsius {
+  value : Int64
+}
+
+pub struct CentiPercent {
+  value : Int64
+}
+
+pub struct Centimetre {
+  value : Int64
+}
+
+pub struct Decimetre {
+  value : Int64
+}
+
+pub struct Degrees {
+  value : Double
+}
+
+pub struct FitTimestamp {
+  value : Int64
+}
+
+pub struct Metre {
+  value : Double
+}
+
+pub struct MetrePerSecond {
+  value : Double
+}
+
+pub struct MillimetrePerSecond {
+  value : Int64
+}
+
+pub struct Millisecond {
+  value : Int64
+}
+
+pub struct Percent {
+  value : Double
+}
+
+pub struct Rpm {
+  value : Int64
+}
+
+pub struct Second {
+  value : Double
+}
+
+pub struct Semicircle {
+  value : Int64
+}
+
+pub struct UnixSecond {
+  value : Int64
+}
+
+pub struct Watt {
+  value : Int64
+}
+
+// Type aliases
+
+// Traits
