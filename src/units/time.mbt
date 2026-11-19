@@ -23,22 +23,33 @@ fn civil_from_days(days_from_epoch : Int64) -> (Int64, Int64, Int64) {
   let shifted = days_from_epoch + 719468L
   let era = floor_div(shifted, 146097L)
   let day_of_era = shifted - era * 146097L
-  let year_of_era =
-    (day_of_era - day_of_era / 1460L + day_of_era / 36524L - day_of_era / 146096L) /
+  let year_of_era = (
+      day_of_era -
+      day_of_era / 1460L +
+      day_of_era / 36524L -
+      day_of_era / 146096L
+    ) /
     365L
   let year = year_of_era + era * 400L
-  let day_of_year =
-    day_of_era - (365L * year_of_era + year_of_era / 4L - year_of_era / 100L)
+  let day_of_year = day_of_era -
+    (365L * year_of_era + year_of_era / 4L - year_of_era / 100L)
   let shifted_month = (5L * day_of_year + 2L) / 153L
   let day = day_of_year - (153L * shifted_month + 2L) / 5L + 1L
-  let month =
-    if shifted_month < 10L { shifted_month + 3L } else { shifted_month - 9L }
+  let month = if shifted_month < 10L {
+    shifted_month + 3L
+  } else {
+    shifted_month - 9L
+  }
   (if month <= 2L { year + 1L } else { year }, month, day)
 }
 
 ///|
 fn pad2(value : Int64) -> String {
-  if value < 10L { "0\{value}" } else { "\{value}" }
+  if value < 10L {
+    "0\{value}"
+  } else {
+    "\{value}"
+  }
 }
 
 ///|
@@ -58,7 +69,7 @@ fn pad4(value : Int64) -> String {
 // Renders as `YYYY-MM-DDThh:mm:ssZ`. Returns None when the year falls outside
 // 0 .. 9999, which the fixed-width format cannot represent. Total function:
 // no raise, so every branch is testable.
-pub fn iso8601_of_unix_second(x : UnixSecond) -> Option[String] {
+pub fn iso8601_of_unix_second(x : UnixSecond) -> String? {
   let unix = x.value
   let days = floor_div(unix, 86400L)
   let seconds_of_day = unix - days * 86400L
@@ -67,7 +78,7 @@ pub fn iso8601_of_unix_second(x : UnixSecond) -> Option[String] {
     return None
   }
   let hour = seconds_of_day / 3600L
-  let minute = (seconds_of_day % 3600L) / 60L
+  let minute = seconds_of_day % 3600L / 60L
   let second = seconds_of_day % 60L
   Some(
     "\{pad4(year)}-\{pad2(month)}-\{pad2(day)}T\{pad2(hour)}:\{pad2(minute)}:\{pad2(second)}Z",
@@ -75,6 +86,6 @@ pub fn iso8601_of_unix_second(x : UnixSecond) -> Option[String] {
 }
 
 ///|
-pub fn iso8601_of_fit_timestamp(x : FitTimestamp) -> Option[String] {
+pub fn iso8601_of_fit_timestamp(x : FitTimestamp) -> String? {
   iso8601_of_unix_second(unix_of_fit_timestamp(x))
 }

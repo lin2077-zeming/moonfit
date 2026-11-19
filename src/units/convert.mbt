@@ -18,63 +18,63 @@ pub let semicircles_per_half_turn : Double = 2147483648.0
 // equator. That is why FIT positions carry more precision than the
 // 6-decimal degrees some devices write into GPX.
 pub fn degrees_of_semicircle(x : Semicircle) -> Degrees {
-  { value: x.value.to_double() * 180.0 / semicircles_per_half_turn }
+  { value: x.value.to_double() * 180.0 / semicircles_per_half_turn, }
 }
 
 ///|
 pub fn unix_of_fit_timestamp(x : FitTimestamp) -> UnixSecond {
-  { value: x.value + fit_epoch_unix }
+  { value: x.value + fit_epoch_unix, }
 }
 
 ///|
 pub fn fit_timestamp_of_unix(x : UnixSecond) -> FitTimestamp {
-  { value: x.value - fit_epoch_unix }
+  { value: x.value - fit_epoch_unix, }
 }
 
 ///|
 pub fn metre_of_centimetre(x : Centimetre) -> Metre {
-  { value: x.value.to_double() / 100.0 }
+  { value: x.value.to_double() / 100.0, }
 }
 
 ///|
 // FIT stores altitude as (metres + 500) * 5. Converting to decimetres keeps
 // the value exact: raw * 2 - 5000.
 pub fn decimetre_of_altitude_raw(x : AltitudeRaw) -> Decimetre {
-  { value: x.value * 2L - 5000L }
+  { value: x.value * 2L - 5000L, }
 }
 
 ///|
 // Inverse of the above. Returns None when the decimetre value has no exact
 // altitude raw, rather than silently truncating: an odd (dm + 5000) is not
 // representable.
-pub fn altitude_raw_of_decimetre(x : Decimetre) -> Option[AltitudeRaw] {
+pub fn altitude_raw_of_decimetre(x : Decimetre) -> AltitudeRaw? {
   let shifted = x.value + 5000L
   if shifted % 2L != 0L {
     None
   } else {
-    Some({ value: shifted / 2L })
+    Some({ value: shifted / 2L, })
   }
 }
 
 ///|
 pub fn metre_of_decimetre(x : Decimetre) -> Metre {
-  { value: x.value.to_double() / 10.0 }
+  { value: x.value.to_double() / 10.0, }
 }
 
 ///|
 pub fn metre_per_second_of_millimetre_per_second(
-  x : MillimetrePerSecond
+  x : MillimetrePerSecond,
 ) -> MetrePerSecond {
-  { value: x.value.to_double() / 1000.0 }
+  { value: x.value.to_double() / 1000.0, }
 }
 
 ///|
 pub fn second_of_millisecond(x : Millisecond) -> Second {
-  { value: x.value.to_double() / 1000.0 }
+  { value: x.value.to_double() / 1000.0, }
 }
 
 ///|
 // Grade fields are sint16 with scale 100, i.e. hundredths of a percent.
 pub fn percent_of_centi_percent(x : CentiPercent) -> Percent {
-  { value: x.value.to_double() / 100.0 }
+  { value: x.value.to_double() / 100.0, }
 }

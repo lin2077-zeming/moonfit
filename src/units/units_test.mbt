@@ -11,7 +11,10 @@
 
 ///|
 test "semicircle to degrees uses corpus-verified constants" {
-  assert_eq(@units.degrees_value(@units.degrees_of_semicircle(@units.semicircle(0L))), 0.0)
+  assert_eq(
+    @units.degrees_value(@units.degrees_of_semicircle(@units.semicircle(0L))),
+    0.0,
+  )
   assert_eq(
     @units.degrees_value(
       @units.degrees_of_semicircle(@units.semicircle(266661528L)),
@@ -56,7 +59,9 @@ test "semicircle covers the full sint32 range" {
 
 ///|
 test "one semicircle is about 9.3 mm on the equator" {
-  let one = @units.degrees_value(@units.degrees_of_semicircle(@units.semicircle(1L)))
+  let one = @units.degrees_value(
+    @units.degrees_of_semicircle(@units.semicircle(1L)),
+  )
   assert_eq(one, 8.381903171539307e-8)
   // Degrees to metres at the equator: 111319.49079327358 m per degree.
   assert_eq(one * 111319.49079327358, 0.009330691929342804)
@@ -166,9 +171,7 @@ test "centimetre to metre" {
     817.03,
   )
   assert_eq(
-    @units.metre_value(
-      @units.metre_of_centimetre(@units.centimetre(3170445L)),
-    ),
+    @units.metre_value(@units.metre_of_centimetre(@units.centimetre(3170445L))),
     31704.45,
   )
 }
@@ -218,12 +221,11 @@ test "altitude raw to decimetre is exact integer arithmetic" {
 test "altitude float path is not the naive one" {
   // Documents why the decimetre representation exists: the naive float
   // decoding of the same raw value does not equal the exact one.
-  let exact =
-    @units.metre_value(
-      @units.metre_of_decimetre(
-        @units.decimetre_of_altitude_raw(@units.altitude_raw(2458L)),
-      ),
-    )
+  let exact = @units.metre_value(
+    @units.metre_of_decimetre(
+      @units.decimetre_of_altitude_raw(@units.altitude_raw(2458L)),
+    ),
+  )
   assert_eq(exact, -8.4)
   let naive = 2458.0 / 5.0 - 500.0
   assert_eq(naive, -8.399999999999977)
@@ -232,7 +234,10 @@ test "altitude float path is not the naive one" {
 
 ///|
 test "decimetre to metre" {
-  assert_eq(@units.metre_value(@units.metre_of_decimetre(@units.decimetre(0L))), 0.0)
+  assert_eq(
+    @units.metre_value(@units.metre_of_decimetre(@units.decimetre(0L))),
+    0.0,
+  )
   assert_eq(
     @units.metre_value(@units.metre_of_decimetre(@units.decimetre(-84L))),
     -8.4,
