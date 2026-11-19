@@ -1,0 +1,15 @@
+.DS_Store
+_build/
+target/
+target
+.mooncakes/
+.moonagent/
+
+# Unredacted activity files must never be committed. Only corpus/redacted/
+# is tracked, and only after `moonfit redact` has trimmed the track ends,
+# shifted the coordinates and stripped the device serial number.
+corpus/raw/
+*.local.fit
+*.local.tcx
+*.local.gpx
+*.local.kml
