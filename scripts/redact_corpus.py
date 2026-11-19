@@ -244,6 +244,18 @@ def redact_kml(text: str, report: dict) -> str:
 REDACTORS = {".tcx": redact_tcx, ".gpx": redact_gpx, ".kml": redact_kml}
 
 
+def write_lf(path, text):
+    """Write text with LF endings regardless of host platform.
+
+    Path.write_text translates newlines using the host default, so on Windows it
+    emits CRLF. The recorded digests are of the bytes on disk, while
+    .gitattributes normalises these files to LF in the repository, so a CRLF
+    write produces a checksum that no fresh clone can reproduce. Gate 0 exists
+    to catch exactly this, and on the first push it did.
+    """
+    path.write_bytes(text.replace("\r\n", "\n").encode("utf-8"))
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -301,13 +313,13 @@ def redact_all(source: Path, out_dir: Path) -> dict:
     lines = ["redacted_name,raw_name,sha256"]
     for name, raw_name, digest in manifest:
         lines.append(f"{name},{raw_name},{digest}")
-    (out_dir / "manifest.csv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_lf(out_dir / "manifest.csv", "\n".join(lines) + "\n")
 
     entries = [f"{digest}  {name}" for name, digest in sums]
     entries.append(f"{sha256(out_dir / 'manifest.csv')}  manifest.csv")
-    (out_dir / "SHA256SUMS").write_text(
+    write_lf(
+        out_dir / "SHA256SUMS",
         "\n".join(sorted(entries, key=lambda line: line.split("  ")[1])) + "\n",
-        encoding="utf-8",
     )
     report["manifest"] = manifest
     return report

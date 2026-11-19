@@ -80,6 +80,18 @@ def main() -> int:
         if path.endswith(".fit") and "text: set" in attrs:
             failures.append(f".fit tracked as text (EOL normalisation risk): {path}")
 
+    # A recorded digest is of the bytes on disk, while .gitattributes forces LF
+    # in the repository. Any CR in a text corpus file or in the manifests means
+    # the writer used the host default newline, and the digest will not
+    # reproduce on a fresh clone. This caught a real CRLF manifest.csv.
+    for path in sorted(CORPUS.rglob("*")):
+        if not path.is_file() or path.suffix.lower() == ".fit":
+            continue
+        raw = path.read_bytes()
+        if b"\r" in raw:
+            rel = path.relative_to(CORPUS).as_posix()
+            failures.append(f"carriage return in a text file, digests will not reproduce: {rel}")
+
     if failures:
         print("Gate 0 FAILED:")
         for item in failures:
