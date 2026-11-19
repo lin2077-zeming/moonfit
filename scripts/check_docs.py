@@ -17,6 +17,7 @@ trusting a green run.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -42,6 +43,15 @@ UNMEASURABLE = [
 MARKERS = ["TODO", "FIXME", "XXX", "HACK"]
 
 DOC_GLOBS = ["README.mbt.md", "docs/*.md", "CHANGELOG.md", "corpus/*.md"]
+
+# A backtick-quoted token that looks like a repository path. Documentation in
+# this repository cites its own evidence by path, so a citation that does not
+# resolve is a defect: it is how a planning document once ended up describing
+# files that were never written.
+PATH_LIKE = re.compile(
+    r"`((?:src|cmd|scripts|docs|corpus|examples|\.github)/[A-Za-z0-9_./*-]+)`"
+)
+
 SOURCE_GLOBS = ["src/**/*.mbt", "cmd/**/*.mbt"]
 
 # A doc line inside one of these sections is describing a limitation, which is
@@ -65,6 +75,22 @@ def scan(paths: list[Path], needles: list[str], allow_limitation_section: bool):
             for needle in needles:
                 if needle.lower() in lowered:
                     hits.append((path, lineno, needle, stripped[:110]))
+    return hits
+
+
+def dangling_references() -> list[tuple[Path, int, str]]:
+    """Find backtick-quoted repository paths in the docs that do not exist."""
+    hits = []
+    for path in docs():
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), 1
+        ):
+            for match in PATH_LIKE.finditer(line):
+                candidate = match.group(1)
+                if any(ch in candidate for ch in "*"):
+                    continue
+                if not (ROOT / candidate).exists():
+                    hits.append((path, lineno, candidate))
     return hits
 
 
@@ -99,6 +125,24 @@ def self_test() -> int:
             failures += 1
         print(f"  {status} expected_hit={should_hit} got={hit} :: {text.strip()[:60]}")
 
+    # A dangling path citation must be reported.
+    tmp = ROOT / "scripts" / ".selftest_refs.md"
+    tmp.write_text(
+        "See `src/units/units_test.mbt` and `src/does_not_exist.mbt`.\n",
+        encoding="utf-8",
+    )
+    try:
+        saved = globals()["DOC_GLOBS"]
+        globals()["DOC_GLOBS"] = ["scripts/.selftest_refs.md"]
+        refs = dangling_references()
+        globals()["DOC_GLOBS"] = saved
+    finally:
+        tmp.unlink()
+    refs_ok = [c for _, _, c in refs] == ["src/does_not_exist.mbt"]
+    print(f"  {'ok  ' if refs_ok else 'FAIL'} dangling path citation detected :: {refs}")
+    if not refs_ok:
+        failures += 1
+
     # The limitation-section exemption must actually exempt.
     exempt = "## Known limitations\n\nDeveloper fields are not yet implemented.\n"
     tmp = ROOT / "scripts" / ".selftest_doc.md"
@@ -124,6 +168,14 @@ def main(argv: list[str]) -> int:
     failures += scan(docs(), UNMEASURABLE, allow_limitation_section=True)
     failures += scan(docs(), MARKERS, allow_limitation_section=False)
     failures += scan(sources(), MARKERS, allow_limitation_section=False)
+
+    dangling = dangling_references()
+    if dangling:
+        print("docs discipline gate FAILED (dangling path citations):")
+        for path, lineno, candidate in dangling:
+            rel = path.relative_to(ROOT).as_posix()
+            print(f"  {rel}:{lineno}: references `{candidate}`, which does not exist")
+        return 1
 
     if failures:
         print("docs discipline gate FAILED:")

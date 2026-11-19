@@ -20,6 +20,7 @@ repository from promising more than the code does.
 | Runnable example decoding the first record of a corpus file into degrees, an ISO-8601 timestamp, metres, m/s and seconds | `examples/wire_units/main.mbt` |
 | Corpus redaction tooling that zeroes the device serial, shifts coordinates by an exact semicircle offset and recomputes the CRC, with a self-test proving no other byte changes | `scripts/redact_corpus.py` |
 | Fourteen redacted real activities with a provenance manifest and checksums | `corpus/redacted/manifest.csv` |
+| Corpus provenance and CC0 dedication, with the redaction offset and the list of fields deliberately left unmodified | `corpus/README.md` |
 
 ## Known limitations
 
