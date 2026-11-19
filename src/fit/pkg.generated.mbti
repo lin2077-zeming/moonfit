@@ -1,0 +1,106 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/src/fit"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn base_type(Int32) -> BaseType raise FitError
+
+pub fn crc16(BytesView) -> Int32
+
+pub fn encode_base(BaseType, BaseValue, Endian) -> Bytes raise FitError
+
+pub fn endian_from_byte(Int32) -> Endian
+
+pub fn file_crc_ok(Bytes) -> Bool
+
+pub fn is_invalid(BaseType, Bytes, Int32, Endian) -> Bool raise FitError
+
+pub fn parse_header(Bytes) -> FitHeader raise FitError
+
+pub fn protocol_major(FitHeader) -> Int32
+
+pub fn protocol_minor(FitHeader) -> Int32
+
+pub fn read_base(BaseType, Bytes, Int32, Endian) -> BaseValue raise FitError
+
+pub fn read_uint(Bytes, Int32, Int32, Endian) -> UInt64 raise FitError
+
+pub fn write_uint(UInt64, Int32, Endian) -> Bytes
+
+// Errors
+pub suberror FitError {
+  Truncated(String)
+  BadSignature
+  BadHeaderSize(Int32)
+  HeaderCrcMismatch(Int32, Int32)
+  FileSizeMismatch(Int64, Int64)
+  UnknownBaseType(Int32)
+  BaseValueMismatch(String)
+}
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) enum BaseType {
+  Enum
+  Sint8
+  Uint8
+  Sint16
+  Uint16
+  Sint32
+  Uint32
+  Str
+  Float32
+  Float64
+  Uint8z
+  Uint16z
+  Uint32z
+  Byte
+  Sint64
+  Uint64
+  Uint64z
+}
+pub fn BaseType::code(Self) -> Int32
+pub fn BaseType::equal(Self, Self) -> Bool
+pub fn BaseType::from_code(Int32) -> Self?
+pub fn BaseType::not_equal(Self, Self) -> Bool
+pub fn BaseType::size(Self) -> Int32
+pub fn BaseType::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) enum BaseValue {
+  Signed(Int64)
+  Unsigned(UInt64)
+  Real(Double)
+  Text(String)
+}
+pub fn BaseValue::equal(Self, Self) -> Bool
+pub fn BaseValue::not_equal(Self, Self) -> Bool
+pub fn BaseValue::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Endian {
+  Little
+  Big
+}
+pub fn Endian::equal(Self, Self) -> Bool
+pub fn Endian::not_equal(Self, Self) -> Bool
+pub fn Endian::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct FitHeader {
+  header_size : Int32
+  protocol : Int32
+  profile : Int32
+  data_size : Int64
+  has_header_crc : Bool
+}
+pub fn FitHeader::equal(Self, Self) -> Bool
+pub fn FitHeader::not_equal(Self, Self) -> Bool
+pub fn FitHeader::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits
