@@ -1,0 +1,7 @@
+import {
+  "lin2077-zeming/moonfit/src/units",
+  "moonbitlang/core/argparse",
+  "moonbitlang/core/env",
+}
+
+pkgtype(kind: "executable")

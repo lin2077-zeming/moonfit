@@ -1,0 +1,24 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/cmd/moonfit"
+
+// Values
+pub let moonfit_version : String
+
+pub fn print_unit_table() -> Unit
+
+pub fn unit_table() -> Array[UnitRow]
+
+// Errors
+
+// Types and methods
+pub struct UnitRow {
+  field : String
+  wire : String
+  stored_as : String
+  conversion : String
+  constant_source : String
+}
+
+// Type aliases
+
+// Traits
