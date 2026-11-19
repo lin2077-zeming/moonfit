@@ -19,10 +19,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # core-version must be pinned alongside the toolchain. The action
+      # defaults it to `latest`, and a core newer than the pinned moon emits a
+      # deprecation warning inside the generated test driver (size_hint= was
+      # renamed to capacity=), which --deny-warn then turns into a build
+      # failure that has nothing to do with this repository.
       - name: Setup MoonBit
         uses: hustcer/setup-moonbit@v1
         with:
           version: ${{ env.MOONBIT_VERSION }}
+          core-version: ${{ env.MOONBIT_VERSION }}
 
       - name: Show MoonBit version
         run: moon version --all
