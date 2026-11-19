@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="IGPSPORT" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd" version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <time>2026-08-03T10:40:06Z</time>
+    <link href="https://www.igpsport.cn/">
+      <text>户外骑行</text>
+    </link>
+  </metadata>
+  <trk>
+    <name>户外骑行</name>
+    <trkseg>
+      <trkpt lat="22.42064315825701" lon="112.63294285163283">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:06Z</time>
+      </trkpt>
+      <trkpt lat="22.42060443386436" lon="112.63287847861648">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:08Z</time>
+      </trkpt>
+      <trkpt lat="22.420565541833639" lon="112.63281167484820">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:10Z</time>
+      </trkpt>
+      <trkpt lat="22.42052681744099" lon="112.63273732736707">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:12Z</time>
+      </trkpt>
+      <trkpt lat="22.42048239335418" lon="112.63265912421048">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:14Z</time>
+      </trkpt>
+      <trkpt lat="22.420370327308774" lon="112.63245284557343">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:19Z</time>
+      </trkpt>
+      <trkpt lat="22.420112248510122" lon="112.63198429718614">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:31Z</time>
+      </trkpt>
+      <trkpt lat="22.42018089629710" lon="112.63179989531636">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:36Z</time>
+      </trkpt>
+      <trkpt lat="22.420303691178560" lon="112.63172630220652">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:39Z</time>
+      </trkpt>
+      <trkpt lat="22.420674255117774" lon="112.63150996528566">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:40:48Z</time>
+      </trkpt>
+      <trkpt lat="22.421181276440620" lon="112.63119153678417">
+        <ele>-8.6</ele>
+        <time>2026-08-03T10:41:04Z</time>
+      </trkpt>
+      <trkpt lat="22.42153482511640" lon="112.63073313049972">
+        <ele>-8.6</ele>
+        <time>2026-08-03T10:41:20Z</time>
+      </trkpt>
+      <trkpt lat="22.42180950008333" lon="112.63038167729974">
+        <ele>-8.6</ele>
+        <time>2026-08-03T10:41:30Z</time>
+      </trkpt>
+      <trkpt lat="22.422279641032219" lon="112.62984347529709">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:41:44Z</time>
+      </trkpt>
+      <trkpt lat="22.42276864126325" lon="112.62928892858326">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:41:58Z</time>
+      </trkpt>
+      <trkpt lat="22.423269711434841" lon="112.62876673601568">
+        <ele>-8.2</ele>
+        <time>2026-08-03T10:42:13Z</time>
+      </trkpt>
+      <trkpt lat="22.423554947599769" lon="112.62848719954491">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:42:26Z</time>
+      </trkpt>
+      <trkpt lat="22.423412790521979" lon="112.62829743325710">
+        <ele>-8.4</ele>
+        <time>2026-08-03T10:43:53Z</time>
+      </trkpt>
+      <trkpt lat="22.423622505739331" lon="112.62813666835427">
+        <ele>-8.2</ele>
+        <time>2026-08-03T10:44:06Z</time>
+      </trkpt>
+      <trkpt lat="22.424020646139979" lon="112.62786434032023">
+        <ele>-8.2</ele>
+        <time>2026-08-03T10:44:18Z</time>
+      </trkpt>
+      <trkpt lat="22.423850242048502" lon="112.62747005559504">
+        <ele>-8</ele>
+        <time>2026-08-03T10:44:30Z</time>
+      </trkpt>
+      <trkpt lat="22.423903550952673" lon="112.62732923962176">
+        <ele>-8.2</ele>
+        <time>2026-08-03T10:44:37Z</time>
+      </trkpt>
+      <trkpt lat="22.423973875120282" lon="112.62722999788821">
+        <ele>-8</ele>
+        <time>2026-08-03T10:44:46Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
