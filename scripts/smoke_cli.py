@@ -18,9 +18,26 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-EXE = ROOT / "_build" / "native" / "release" / "build" / "cmd" / "moonfit" / (
-    "moonfit.exe" if os.name == "nt" else "moonfit"
-)
+BUILD_DIR = ROOT / "_build" / "native" / "release" / "build" / "cmd" / "moonfit"
+
+
+def locate_cli() -> Path | None:
+    """Find the built CLI.
+
+    MoonBit's native backend names the artifact `moonfit.exe` on every host,
+    including Linux, so the extension cannot be inferred from os.name. Try both
+    spellings and fall back to a glob so a toolchain rename does not silently
+    turn this gate into a no-op.
+    """
+    for name in ("moonfit.exe", "moonfit"):
+        candidate = BUILD_DIR / name
+        if candidate.exists():
+            return candidate
+    found = sorted(BUILD_DIR.glob("moonfit*")) if BUILD_DIR.exists() else []
+    return found[0] if found else None
+
+
+EXE = locate_cli()
 
 
 def module_version() -> str:
@@ -91,9 +108,14 @@ def self_test() -> int:
 
 
 def main(argv: list[str]) -> int:
-    if not EXE.exists():
-        print(f"::error file={EXE}::CLI not built. Run: moon build cmd/moonfit --target native --release")
+    if EXE is None:
+        print(
+            f"::error file={BUILD_DIR}::CLI not built. "
+            "Run: moon build cmd/moonfit --target native --release"
+        )
         return 1
+    if os.name != "nt" and not os.access(EXE, os.X_OK):
+        EXE.chmod(EXE.stat().st_mode | 0o111)
     if "--self-test" in argv:
         print("smoke_cli self-test (R4: verify the ruler first)")
         return self_test()
@@ -104,7 +126,10 @@ def main(argv: list[str]) -> int:
         for item in failures:
             print(f"  - {item}")
         return 1
-    print(f"CLI contract smoke test OK: {len(cases(version))} cases, version {version}.")
+    print(
+        f"CLI contract smoke test OK: {len(cases(version))} cases, "
+        f"version {version}, binary {EXE.name}."
+    )
     return 0
 
 
