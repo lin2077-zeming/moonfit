@@ -57,6 +57,9 @@ fn main {
   // An explicit --help exits 0, but being invoked with no command at all is a
   // usage error and exits 2. argparse folds both into one Help outcome when
   // arg_required_else_help is set, so the empty case is decided here instead.
+  if argv.length() > 0 && argv[0] == "dump" {
+    @env.exit(run_dump(argv))
+  }
   if argv.length() == 0 {
     eprintln("moonfit: no command given")
     eprintln("")

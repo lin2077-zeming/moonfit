@@ -125,6 +125,7 @@ pub(all) enum BaseValue {
   Unsigned(UInt64)
   Real(Double)
   Text(String)
+  Raw(Bytes)
 }
 
 ///|
@@ -269,6 +270,7 @@ pub fn encode_base(
       )
     (Sint8 | Sint16 | Sint32 | Sint64, Signed(v)) =>
       write_uint(v.reinterpret_as_uint64(), t.size(), endian)
+    (_, Raw(b)) => b
     (_, Unsigned(v)) => write_uint(v, t.size(), endian)
     _ => raise FitError::BaseValueMismatch("value does not match base type")
   }

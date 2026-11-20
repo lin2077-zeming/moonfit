@@ -16,3 +16,7 @@ keywords = [ "fit", "garmin", "tcx", "gps", "activity", "codec", "parser" ]
 preferred_target = "native"
 
 description = "Spec-driven Garmin FIT activity codec with byte-exact round-trip, TCX decoding, and measured cross-format divergence reports."
+
+import {
+  "moonbitlang/x@0.5.7",
+}

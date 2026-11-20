@@ -8,7 +8,11 @@ import {
 // Values
 pub fn base_type(Int32) -> BaseType raise FitError
 
+pub fn count_global(Array[Message], Int32) -> Int32
+
 pub fn crc16(BytesView) -> Int32
+
+pub fn data_messages(Array[Message]) -> Array[DataMessage]
 
 pub fn encode_base(BaseType, BaseValue, Endian) -> Bytes raise FitError
 
@@ -19,6 +23,8 @@ pub fn file_crc_ok(Bytes) -> Bool
 pub fn is_invalid(BaseType, Bytes, Int32, Endian) -> Bool raise FitError
 
 pub fn parse_header(Bytes) -> FitHeader raise FitError
+
+pub fn parse_messages(Bytes) -> Array[Message] raise FitError
 
 pub fn protocol_major(FitHeader) -> Int32
 
@@ -38,6 +44,7 @@ pub suberror FitError {
   HeaderCrcMismatch(Int32, Int32)
   FileSizeMismatch(Int64, Int64)
   UnknownBaseType(Int32)
+  NoDefinition(Int32)
   BaseValueMismatch(String)
 }
 
@@ -75,10 +82,35 @@ pub(all) enum BaseValue {
   Unsigned(UInt64)
   Real(Double)
   Text(String)
+  Raw(Bytes)
 }
 pub fn BaseValue::equal(Self, Self) -> Bool
 pub fn BaseValue::not_equal(Self, Self) -> Bool
 pub fn BaseValue::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct DataMessage {
+  local_id : Int32
+  global : Int32
+  fields : Array[FieldValue]
+  dev_data : Bytes
+  ts_offset : Int32?
+}
+pub fn DataMessage::equal(Self, Self) -> Bool
+pub fn DataMessage::not_equal(Self, Self) -> Bool
+pub fn DataMessage::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Definition {
+  local_id : Int32
+  global : Int32
+  endian : Endian
+  fields : Array[FieldDef]
+  dev_fields : Array[FieldDef]
+}
+pub fn Definition::equal(Self, Self) -> Bool
+pub fn Definition::not_equal(Self, Self) -> Bool
+pub fn Definition::to_repr(Self) -> @debug.Repr
 
 #derive(Eq, @debug.Debug)
 pub(all) enum Endian {
@@ -88,6 +120,26 @@ pub(all) enum Endian {
 pub fn Endian::equal(Self, Self) -> Bool
 pub fn Endian::not_equal(Self, Self) -> Bool
 pub fn Endian::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct FieldDef {
+  def_num : Int32
+  size : Int32
+  base : BaseType
+}
+pub fn FieldDef::equal(Self, Self) -> Bool
+pub fn FieldDef::not_equal(Self, Self) -> Bool
+pub fn FieldDef::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct FieldValue {
+  def_num : Int32
+  value : BaseValue
+  invalid : Bool
+}
+pub fn FieldValue::equal(Self, Self) -> Bool
+pub fn FieldValue::not_equal(Self, Self) -> Bool
+pub fn FieldValue::to_repr(Self) -> @debug.Repr
 
 #derive(Eq, @debug.Debug)
 pub(all) struct FitHeader {
@@ -100,6 +152,15 @@ pub(all) struct FitHeader {
 pub fn FitHeader::equal(Self, Self) -> Bool
 pub fn FitHeader::not_equal(Self, Self) -> Bool
 pub fn FitHeader::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Message {
+  Def(Definition)
+  Data(DataMessage)
+}
+pub fn Message::equal(Self, Self) -> Bool
+pub fn Message::not_equal(Self, Self) -> Bool
+pub fn Message::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -6,5 +6,6 @@ pub suberror FitError {
   HeaderCrcMismatch(Int32, Int32)
   FileSizeMismatch(Int64, Int64)
   UnknownBaseType(Int32)
+  NoDefinition(Int32)
   BaseValueMismatch(String)
 }
