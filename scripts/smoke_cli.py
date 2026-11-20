@@ -71,6 +71,8 @@ def cases(version: str):
         (["roundtrip"], 2, lambda o: o == "", lambda e: "needs" in e),
         (["metrics"], 2, lambda o: o == "", lambda e: "needs a file" in e),
         (["tcx"], 2, lambda o: o == "", lambda e: "needs a file" in e),
+        (["diff"], 2, lambda o: o == "", lambda e: "needs" in e),
+        (["redact"], 2, lambda o: o == "", lambda e: "needs" in e),
     ]
 
 

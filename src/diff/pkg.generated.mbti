@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/src/diff"
+
+import {
+  "lin2077-zeming/moonfit/src/model",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compare(@model.Activity, @model.Activity, Bool) -> Divergence
+
+pub fn to_json(Divergence) -> String
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct Divergence {
+  fit_points : Int32
+  tcx_points : Int32
+  points_equal : Bool
+  fit_timer_s : Double
+  tcx_timer_s : Double
+  timer_equal : Bool
+  fit_elapsed_s : Double
+  tcx_elapsed_s : Double
+  pause_lost_s : Double
+  fit_distance_m : Double
+  tcx_distance_m : Double
+  distance_delta_m : Double
+  fit_alt : Int32
+  tcx_alt : Int32
+  fit_hr : Int32
+  tcx_hr : Int32
+  sport_fit : String
+  sport_tcx : String
+  sport_equal : Bool
+  tcx_sport_nonstandard : Bool
+  first_ts_equal : Bool
+  last_ts_equal : Bool
+}
+pub fn Divergence::equal(Self, Self) -> Bool
+pub fn Divergence::not_equal(Self, Self) -> Bool
+pub fn Divergence::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

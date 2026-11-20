@@ -234,3 +234,77 @@ fn run_tcx(argv : Array[String]) -> Int32 {
   )
   0
 }
+
+///|
+fn run_diff(argv : Array[String]) -> Int32 {
+  if argv.length() < 3 {
+    eprintln("moonfit: diff needs <fit> <tcx>")
+    return 2
+  }
+  let fdata = @fs.read_file_to_bytes(argv[1]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[1]}")
+      return 2
+    }
+  }
+  let tdata = @fs.read_file_to_bytes(argv[2]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[2]}")
+      return 2
+    }
+  }
+  let fit = @model.from_fit(@fit.parse_messages(fdata)) catch {
+    _ => {
+      eprintln("moonfit: cannot decode FIT \{argv[1]}")
+      return 2
+    }
+  }
+  let tcx = @tcx.parse(tdata) catch {
+    @tcx.Malformed(msg) => {
+      eprintln("moonfit: malformed TCX: \{msg}")
+      return 2
+    }
+  }
+  println(
+    @diff.to_json(@diff.compare(fit, tcx.activity, tcx.sport_nonstandard)),
+  )
+  0
+}
+
+///|
+fn run_redact(argv : Array[String]) -> Int32 {
+  if argv.length() < 3 {
+    eprintln("moonfit: redact needs <in.fit> <out.fit> [trim] [dlat] [dlon]")
+    return 2
+  }
+  let trim = if argv.length() > 3 { to_int_def(argv[3], 0) } else { 0 }
+  let dlat = if argv.length() > 4 {
+    to_int_def(argv[4], 600000).to_int64()
+  } else {
+    600000L
+  }
+  let dlon = if argv.length() > 5 {
+    to_int_def(argv[5], -800000).to_int64()
+  } else {
+    -800000L
+  }
+  let data = @fs.read_file_to_bytes(argv[1]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[1]}")
+      return 2
+    }
+  }
+  let out = @redact.redact(data, trim, dlat, dlon) catch {
+    _ => {
+      eprintln("moonfit: cannot redact \{argv[1]}")
+      return 2
+    }
+  }
+  @fs.write_bytes_to_file(argv[2], out) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot write \{argv[2]}")
+      return 2
+    }
+  }
+  0
+}

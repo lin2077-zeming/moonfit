@@ -83,6 +83,12 @@ jobs:
       - name: TCX decode vs independent XML parse
         run: python3 scripts/check_tcx.py
 
+      - name: Gate G5 - FIT/TCX divergence vs independent reference
+        run: python3 scripts/check_g5.py
+
+      - name: Redaction idempotence + trim gate
+        run: python3 scripts/check_redact.py
+
       - name: Test native target
         run: moon test --target native --deny-warn
 

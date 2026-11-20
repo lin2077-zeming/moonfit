@@ -32,6 +32,15 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   architecture byte), normal and compressed-timestamp data messages, local-type
   redefinition, and exact consumption of the data section. Array / opaque
   fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- `src/diff`: FIT vs TCX divergence report (point counts L1, timer equality L6,
+  pause lost, distance delta, altitude/HR presence, sport normalisation, timestamp
+  alignment). `moonfit diff`; Gate G5 cross-checks all 6 pairs independently and
+  asserts B1 (session swc==0 with nec!=0).
+- `src/redact`: native FIT redaction (zero device serial, exact semicircle coordinate
+  shift, optional leading/trailing record trim) re-encoded with recomputed CRCs.
+  Verified to reproduce the committed redacted corpus byte-for-byte from the raw
+  exports (6/6, local); CI gate checks idempotence and that trim(5) drops exactly
+  10 records and still round-trips. `moonfit redact`.
 - `src/tcx`: TCX decoding into the canonical model using the Milky2018/xml pull
   parser. Tolerates UTF-8 BOM and namespace prefixes; handles the rich iGPSPORT
   and minimal Huawei variants; normalises non-standard Sport values (e.g.

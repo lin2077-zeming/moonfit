@@ -14,6 +14,8 @@ pub fn crc16(BytesView) -> Int32
 
 pub fn data_messages(Array[Message]) -> Array[DataMessage]
 
+pub fn encode(FitHeader, Array[Message]) -> Bytes
+
 pub fn encode_base(BaseType, BaseValue, Endian) -> Bytes raise FitError
 
 pub fn encode_fit(Bytes) -> Bytes raise FitError

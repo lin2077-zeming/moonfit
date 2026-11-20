@@ -3,6 +3,8 @@ import {
   "lin2077-zeming/moonfit/src/model",
   "lin2077-zeming/moonfit/src/metrics",
   "lin2077-zeming/moonfit/src/tcx",
+  "lin2077-zeming/moonfit/src/diff",
+  "lin2077-zeming/moonfit/src/redact",
   "moonbitlang/core/string",
   "lin2077-zeming/moonfit/src/units",
   "moonbitlang/core/argparse",

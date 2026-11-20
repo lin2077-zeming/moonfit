@@ -69,6 +69,12 @@ fn main {
   if argv.length() > 0 && argv[0] == "tcx" {
     @env.exit(run_tcx(argv))
   }
+  if argv.length() > 0 && argv[0] == "diff" {
+    @env.exit(run_diff(argv))
+  }
+  if argv.length() > 0 && argv[0] == "redact" {
+    @env.exit(run_redact(argv))
+  }
   if argv.length() == 0 {
     eprintln("moonfit: no command given")
     eprintln("")

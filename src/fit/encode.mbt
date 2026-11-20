@@ -39,9 +39,7 @@ fn push_field_def(acc : Array[Byte], f : FieldDef) -> Unit {
 }
 
 ///|
-pub fn encode_fit(data : Bytes) -> Bytes raise FitError {
-  let h = parse_header(data)
-  let msgs = parse_messages(data)
+pub fn encode(h : FitHeader, msgs : Array[Message]) -> Bytes {
   let body : Array[Byte] = []
   for m in msgs {
     match m {
@@ -82,17 +80,11 @@ pub fn encode_fit(data : Bytes) -> Bytes raise FitError {
       }
     }
   }
-  if body.length() != h.data_size.to_int() {
-    raise FitError::FileSizeMismatch(
-      Int64::from_int(body.length()),
-      h.data_size,
-    )
-  }
   let hdr : Array[Byte] = []
   hdr.push(b(h.header_size))
   hdr.push(b(h.protocol))
   push_u16(hdr, h.profile, Little)
-  push_u32(hdr, h.data_size, Little)
+  push_u32(hdr, Int64::from_int(body.length()), Little)
   push_bytes(hdr, Bytes::from_array([b(0x2E), b(0x46), b(0x49), b(0x54)]))
   if h.header_size == 14 {
     let hc = crc16(Bytes::from_array(hdr).clamped_view())
@@ -104,4 +96,9 @@ pub fn encode_fit(data : Bytes) -> Bytes raise FitError {
     full,
     write_uint(Int64::from_int(fc).reinterpret_as_uint64(), 2, Little),
   )
+}
+
+///|
+pub fn encode_fit(data : Bytes) -> Bytes raise FitError {
+  encode(parse_header(data), parse_messages(data))
 }
