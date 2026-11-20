@@ -31,6 +31,8 @@ repository from promising more than the code does.
 | TCX decoding into the same canonical model (BOM + namespace tolerance, iGPSPORT/Huawei variants, non-standard Sport normalisation), cross-checked on all 14 corpus .tcx against an independent XML parse | `scripts/check_tcx.py` |
 | FIT vs TCX divergence report encoding laws L1/L6 and defect B1 as checkable facts, cross-checked on all 6 pairs against an independent reference (Gate G5) | `scripts/check_g5.py` |
 | Native FIT redaction (zero serial, exact semicircle coordinate shift, optional record trim) that reproduces the committed corpus byte-for-byte from raw exports and is idempotent + structure-preserving | `scripts/check_redact.py` |
+| Robustness: typed errors for truncation / bad signature / bad header size / header-CRC / missing definition / unknown base type / overlong field, and a full single-byte mutation sweep rejected on all four backends (Gate G6) | `src/fit/fit_test.mbt` |
+| `moonfit verify` (total validity) and `moonfit info` (header + counts) | `scripts/check_g6.py` |
 | Corpus redaction tooling that zeroes the device serial, shifts coordinates by an exact semicircle offset and recomputes the CRC, with a self-test proving no other byte changes | `scripts/redact_corpus.py` |
 | Fourteen redacted real activities with a provenance manifest and checksums | `corpus/redacted/manifest.csv` |
 | Corpus provenance and CC0 dedication, with the redaction offset and the list of fields deliberately left unmodified | `corpus/README.md` |

@@ -32,6 +32,10 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   architecture byte), normal and compressed-timestamp data messages, local-type
   redefinition, and exact consumption of the data section. Array / opaque
   fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- `fit::verify` total validity check and Gate G6: typed errors for malformed
+  inputs plus an exhaustive single-byte mutation sweep (every byte of the embedded
+  corpus flipped) rejected on all four backends; a CI gate repeats header/data/CRC
+  mutations across all six files. `moonfit verify` and `moonfit info` added.
 - `src/diff`: FIT vs TCX divergence report (point counts L1, timer equality L6,
   pause lost, distance delta, altitude/HR presence, sport normalisation, timestamp
   alignment). `moonfit diff`; Gate G5 cross-checks all 6 pairs independently and

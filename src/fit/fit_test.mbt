@@ -441,3 +441,138 @@ test "G2: re-encoding a corrupted CRC is rejected, not silently fixed" {
   assert_true(re != bad)
   assert_true(@fit.file_crc_ok(re))
 }
+
+///|
+fn bb(x : Int32) -> Byte {
+  x.to_int64().to_byte()
+}
+
+///|
+fn wrap12(body : Array[Byte]) -> Bytes {
+  let n = body.length()
+  let hdr : Array[Byte] = [
+    bb(12),
+    bb(0x10),
+    bb(0xEA),
+    bb(0x07),
+    bb(n & 0xFF),
+    bb((n >> 8) & 0xFF),
+    bb((n >> 16) & 0xFF),
+    bb((n >> 24) & 0xFF),
+    b'.',
+    b'F',
+    b'I',
+    b'T',
+  ]
+  for x in body {
+    hdr.push(x)
+  }
+  hdr.push(bb(0))
+  hdr.push(bb(0))
+  Bytes::from_array(hdr)
+}
+
+///|
+test "G6: verify accepts the pristine corpus file" {
+  assert_true(@fit.verify(corpus0))
+}
+
+///|
+test "G6: every single-byte mutation of the corpus is rejected" {
+  let base = corpus0.to_array()
+  let mut i = 0
+  while i < base.length() {
+    let mut_arr = base.copy()
+    mut_arr[i] = mut_arr[i].lxor(b'\xff')
+    assert_true(!@fit.verify(Bytes::from_array(mut_arr)))
+    i = i + 1
+  }
+}
+
+///|
+test "G6: truncated and empty inputs are typed errors, not panics" {
+  assert_true(!@fit.verify(Bytes::from_array([])))
+  assert_true(!@fit.verify(Bytes::from_array([14, 0x10, 0, 0])))
+  try @fit.parse_header(Bytes::from_array([14, 0x10, 0, 0])) catch {
+    @fit.Truncated(_) => ()
+    _ => fail("expected Truncated")
+  } noraise {
+    _ => fail("expected Truncated")
+  }
+}
+
+///|
+test "G6: bad signature / header size / header CRC are typed errors" {
+  let bad_sig = Bytes::from_array([
+    12, 0x10, 0xEA, 0x07, 0, 0, 0, 0, b'.', b'F', b'I', b'X', 0, 0,
+  ])
+  try @fit.parse_header(bad_sig) catch {
+    @fit.BadSignature => ()
+    _ => fail("expected BadSignature")
+  } noraise {
+    _ => fail("expected BadSignature")
+  }
+  let bad_size = Bytes::from_array([
+    13, 0x10, 0xEA, 0x07, 0, 0, 0, 0, b'.', b'F', b'I', b'T', 0, 0,
+  ])
+  try @fit.parse_header(bad_size) catch {
+    @fit.BadHeaderSize(13) => ()
+    _ => fail("expected BadHeaderSize")
+  } noraise {
+    _ => fail("expected BadHeaderSize")
+  }
+}
+
+///|
+test "G6: data message without definition is a typed error" {
+  let b = wrap12([bb(0)])
+  try @fit.parse_messages(b) catch {
+    @fit.NoDefinition(0) => ()
+    _ => fail("expected NoDefinition")
+  } noraise {
+    _ => fail("expected NoDefinition")
+  }
+}
+
+///|
+test "G6: unknown base type is a typed error" {
+  let body = [
+    bb(0x40),
+    bb(0),
+    bb(0),
+    bb(20),
+    bb(0),
+    bb(1),
+    bb(0),
+    bb(4),
+    bb(0x99),
+  ]
+  try @fit.parse_messages(wrap12(body)) catch {
+    @fit.UnknownBaseType(0x99) => ()
+    _ => fail("expected UnknownBaseType")
+  } noraise {
+    _ => fail("expected UnknownBaseType")
+  }
+}
+
+///|
+test "G6: overlong field is a typed error" {
+  let body = [
+    bb(0x40),
+    bb(0),
+    bb(0),
+    bb(20),
+    bb(0),
+    bb(1),
+    bb(0),
+    bb(252),
+    bb(0x86),
+    bb(0),
+  ]
+  try @fit.parse_messages(wrap12(body)) catch {
+    @fit.Truncated(_) => ()
+    _ => fail("expected Truncated")
+  } noraise {
+    _ => fail("expected Truncated")
+  }
+}

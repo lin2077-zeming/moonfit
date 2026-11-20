@@ -75,6 +75,12 @@ fn main {
   if argv.length() > 0 && argv[0] == "redact" {
     @env.exit(run_redact(argv))
   }
+  if argv.length() > 0 && argv[0] == "verify" {
+    @env.exit(run_verify(argv))
+  }
+  if argv.length() > 0 && argv[0] == "info" {
+    @env.exit(run_info(argv))
+  }
   if argv.length() == 0 {
     eprintln("moonfit: no command given")
     eprintln("")

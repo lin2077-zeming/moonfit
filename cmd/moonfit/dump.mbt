@@ -308,3 +308,73 @@ fn run_redact(argv : Array[String]) -> Int32 {
   }
   0
 }
+
+///|
+fn run_verify(argv : Array[String]) -> Int32 {
+  if argv.length() < 2 {
+    eprintln("moonfit: verify needs a file argument")
+    return 2
+  }
+  let data = @fs.read_file_to_bytes(argv[1]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[1]}")
+      return 2
+    }
+  }
+  if @fit.verify(data) {
+    println("ok")
+    0
+  } else {
+    eprintln("moonfit: invalid FIT \{argv[1]}")
+    1
+  }
+}
+
+///|
+fn run_info(argv : Array[String]) -> Int32 {
+  if argv.length() < 2 {
+    eprintln("moonfit: info needs a file argument")
+    return 2
+  }
+  let data = @fs.read_file_to_bytes(argv[1]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[1]}")
+      return 2
+    }
+  }
+  let h = @fit.parse_header(data) catch {
+    _ => {
+      eprintln("moonfit: bad header \{argv[1]}")
+      return 2
+    }
+  }
+  let msgs = @fit.parse_messages(data) catch {
+    _ => {
+      eprintln("moonfit: bad record stream \{argv[1]}")
+      return 2
+    }
+  }
+  let data_n = @fit.data_messages(msgs).length()
+  println(
+    "{\"header_size\":" +
+    h.header_size.to_string() +
+    ",\"protocol\":\"" +
+    @fit.protocol_major(h).to_string() +
+    "." +
+    @fit.protocol_minor(h).to_string() +
+    "\",\"profile\":" +
+    h.profile.to_string() +
+    ",\"data_size\":" +
+    h.data_size.to_string() +
+    ",\"has_header_crc\":" +
+    (if h.has_header_crc { "true" } else { "false" }) +
+    ",\"file_crc_ok\":" +
+    (if @fit.file_crc_ok(data) { "true" } else { "false" }) +
+    ",\"data_messages\":" +
+    data_n.to_string() +
+    ",\"records\":" +
+    @fit.count_global(msgs, 20).to_string() +
+    "}",
+  )
+  0
+}

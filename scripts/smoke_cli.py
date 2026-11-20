@@ -73,6 +73,8 @@ def cases(version: str):
         (["tcx"], 2, lambda o: o == "", lambda e: "needs a file" in e),
         (["diff"], 2, lambda o: o == "", lambda e: "needs" in e),
         (["redact"], 2, lambda o: o == "", lambda e: "needs" in e),
+        (["verify"], 2, lambda o: o == "", lambda e: "needs a file" in e),
+        (["info"], 2, lambda o: o == "", lambda e: "needs a file" in e),
     ]
 
 

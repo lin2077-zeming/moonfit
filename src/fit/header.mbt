@@ -81,3 +81,17 @@ pub fn protocol_major(h : FitHeader) -> Int32 {
 pub fn protocol_minor(h : FitHeader) -> Int32 {
   h.protocol & 0xF
 }
+
+///|
+// Total validity check: header (signature/size/header-CRC), trailing file CRC and
+// full record-stream structure must all pass. Returns false on any typed error;
+// never panics. Because the file CRC covers every preceding byte, any single-byte
+// mutation of a valid file is detected here (Gate G6 sweeps this property).
+pub fn verify(data : Bytes) -> Bool {
+  let _ = parse_header(data) catch { _ => return false }
+  if !file_crc_ok(data) {
+    return false
+  }
+  let _ = parse_messages(data) catch { _ => return false }
+  true
+}

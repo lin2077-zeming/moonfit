@@ -38,6 +38,8 @@ pub fn read_base(BaseType, Bytes, Int32, Endian) -> BaseValue raise FitError
 
 pub fn read_uint(Bytes, Int32, Int32, Endian) -> UInt64 raise FitError
 
+pub fn verify(Bytes) -> Bool
+
 pub fn write_uint(UInt64, Int32, Endian) -> Bytes
 
 // Errors
