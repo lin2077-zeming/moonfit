@@ -1,12 +1,16 @@
 ///|
 // The FIT record-stream walker: definition messages, normal data messages and
 // compressed-timestamp data messages. Ported from the byte-level reference
-// walker that was validated against all 42 corpus files, reusing the base-type
-// readers. A local_id message type may be redefined; the latest definition wins.
+// walker validated against all 42 corpus files, reusing the base-type readers.
+// A local message type may be redefined; the latest definition wins.
 //
-// Developer fields are recorded and their bytes carried through untouched so
-// the stream advances exactly (needed for byte-exact re-encoding), but their
-// semantics are out of scope and they are exposed as a raw blob.
+// Array fields are decoded element-wise into BaseValue::Array. Developer data
+// is carried through untouched as a raw blob so the stream advances exactly
+// (needed for byte-exact re-encoding); its semantics are out of scope.
+//
+// Each data message carries an absolute `timestamp`: taken from its timestamp
+// field when present, or reconstructed from a compressed 5-bit offset against
+// the previous absolute timestamp (with 0x20 roll-over).
 
 ///|
 #derive(Eq, Debug)
@@ -60,6 +64,7 @@ pub(all) struct DataMessage {
   fields : Array[FieldValue]
   dev_data : Bytes
   ts_offset : Int32?
+  timestamp : Int64?
 }
 
 ///|
@@ -94,6 +99,8 @@ fn require_def(
 
 ///|
 // Strings are bounded by the declared field size, not by the rest of the file.
+// Fixed-size fields whose declared size is a whole multiple of the element
+// size are arrays and are decoded element-wise.
 fn read_field(
   base : BaseType,
   size : Int32,
@@ -101,13 +108,22 @@ fn read_field(
   off : Int32,
   endian : Endian,
 ) -> BaseValue raise FitError {
-  // Array / opaque fields (size != element size) are carried as raw bytes;
-  // their element semantics are out of scope for this release.
   if base != Str && size != BaseType::size(base) {
     if off + size > data.length() {
       raise FitError::Truncated("array field exceeds file length")
     }
-    return Raw(data.exact_view(start=off, end=off + size).data())
+    let elem = BaseType::size(base)
+    if size % elem != 0 {
+      raise FitError::Truncated("array size is not a multiple of the element")
+    }
+    let n = size / elem
+    let elems : Array[BaseValue] = []
+    let mut k = 0
+    while k < n {
+      elems.push(read_base(base, data, off + k * elem, endian))
+      k = k + 1
+    }
+    return Array(elems)
   }
   match base {
     Str => {
@@ -158,26 +174,62 @@ fn read_data(
 }
 
 ///|
+fn field_timestamp(fields : Array[FieldValue]) -> Int64? {
+  for f in fields {
+    if f.def_num == 253 && !f.invalid {
+      match f.value {
+        Signed(v) => return Some(v)
+        Unsigned(v) => return Some(v.reinterpret_as_int64())
+        _ => ()
+      }
+    }
+  }
+  None
+}
+
+///|
+// Reconstruct an absolute timestamp from a compressed 5-bit offset. The offset
+// replaces the low five bits of the previous timestamp and rolls over by 0x20
+// when it wraps below the previous low bits.
+fn reconstruct_ts(last : Int64?, offset : Int32) -> Int64? {
+  match last {
+    None => None
+    Some(l) => {
+      let off = Int64::from_int(offset)
+      let mut ts = (l & -32L) + off
+      if off < (l & 31L) {
+        ts = ts + 0x20L
+      }
+      Some(ts)
+    }
+  }
+}
+
+///|
 pub fn parse_messages(data : Bytes) -> Array[Message] raise FitError {
   let h = parse_header(data)
   let end = h.header_size + h.data_size.to_int()
   let defs : Array[Definition?] = Array::make(16, None)
   let out : Array[Message] = []
+  let mut last_ts : Int64? = None
   let mut off = h.header_size
   while off < end {
     let hb = byte_at(data, off)
     if (hb & 0x80) != 0 {
       let local_id = (hb >> 5) & 0x3
-      let ts = hb & 0x1F
+      let toff = hb & 0x1F
       let d = require_def(defs, local_id)
       let (fields, dev, next) = read_data(data, off + 1, d)
+      let ts = reconstruct_ts(last_ts, toff)
+      last_ts = ts
       out.push(
         Data({
           local_id,
           global: d.global,
           fields,
           dev_data: dev,
-          ts_offset: Some(ts),
+          ts_offset: Some(toff),
+          timestamp: ts,
         }),
       )
       off = next
@@ -223,6 +275,10 @@ pub fn parse_messages(data : Bytes) -> Array[Message] raise FitError {
       let local_id = hb & 0x0F
       let d = require_def(defs, local_id)
       let (fields, dev, next) = read_data(data, off + 1, d)
+      let ts = field_timestamp(fields)
+      if ts != None {
+        last_ts = ts
+      }
       out.push(
         Data({
           local_id,
@@ -230,6 +286,7 @@ pub fn parse_messages(data : Bytes) -> Array[Message] raise FitError {
           fields,
           dev_data: dev,
           ts_offset: None,
+          timestamp: ts,
         }),
       )
       off = next

@@ -82,6 +82,7 @@ pub(all) enum BaseValue {
   Unsigned(UInt64)
   Real(Double)
   Text(String)
+  Array(Array[BaseValue])
   Raw(Bytes)
 }
 pub fn BaseValue::equal(Self, Self) -> Bool
@@ -95,6 +96,7 @@ pub(all) struct DataMessage {
   fields : Array[FieldValue]
   dev_data : Bytes
   ts_offset : Int32?
+  timestamp : Int64?
 }
 pub fn DataMessage::equal(Self, Self) -> Bool
 pub fn DataMessage::not_equal(Self, Self) -> Bool

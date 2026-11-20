@@ -22,15 +22,24 @@ fn escape(s : String) -> String {
 
 ///|
 fn value_json(v : @fit.BaseValue, invalid : Bool) -> String {
-  if invalid {
-    return "null"
-  }
   match v {
-    @fit.Signed(x) => x.to_string()
-    @fit.Unsigned(x) => x.to_string()
-    @fit.Real(d) => d.to_string()
-    @fit.Text(t) => "\"" + escape(t) + "\""
-    @fit.Raw(b) => "\"raw:\{b.length()}\""
+    @fit.Array(elems) => {
+      let mut parts = ""
+      let mut i = 0
+      for e in elems {
+        if i > 0 {
+          parts = parts + ","
+        }
+        parts = parts + value_json(e, false)
+        i = i + 1
+      }
+      "[" + parts + "]"
+    }
+    @fit.Signed(x) => if invalid { "null" } else { x.to_string() }
+    @fit.Unsigned(x) => if invalid { "null" } else { x.to_string() }
+    @fit.Real(d) => if invalid { "null" } else { d.to_string() }
+    @fit.Text(t) => if invalid { "null" } else { "\"" + escape(t) + "\"" }
+    @fit.Raw(b) => if invalid { "null" } else { "\"raw:\{b.length()}\"" }
   }
 }
 

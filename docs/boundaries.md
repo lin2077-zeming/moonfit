@@ -23,6 +23,8 @@ repository from promising more than the code does.
 | All sixteen base types: wire codes, element sizes, endian-aware read/write and per-type invalid-value detection | `src/fit/fit_test.mbt` |
 | FIT record-stream walker: definition, normal-data and compressed-timestamp messages, with local-type redefinition and exact stream consumption | `src/fit/fit_test.mbt` |
 | `moonfit dump` JSONL of raw field values, and the G3 differential gate comparing every scalar field of every corpus message against fitparse | `scripts/check_g3.py` |
+| Element-wise decoding of array fields (serial_number, time_in_*_zone) into `BaseValue::Array`, compared element-wise by G3 | `src/fit/fit_test.mbt` |
+| Absolute timestamp on every data message, reconstructed from compressed 5-bit offsets with 0x20 roll-over | `src/fit/fit_test.mbt` |
 | Corpus redaction tooling that zeroes the device serial, shifts coordinates by an exact semicircle offset and recomputes the CRC, with a self-test proving no other byte changes | `scripts/redact_corpus.py` |
 | Fourteen redacted real activities with a provenance manifest and checksums | `corpus/redacted/manifest.csv` |
 | Corpus provenance and CC0 dedication, with the redaction offset and the list of fields deliberately left unmodified | `corpus/README.md` |
@@ -34,7 +36,7 @@ later date, and none of it is required by any claim made above.
 
 | Not delivered | Reason |
 |---|---|
-| Developer-field element semantics and compressed-timestamp reconstruction | Array/opaque fields are carried as raw bytes and compressed offsets are captured but not yet turned into absolute timestamps; scalar decoding is delivered and G3-verified |
+| Developer-field element semantics | Developer data is carried as a raw blob so the stream advances exactly; normal array fields are decoded, but developer-defined element semantics are out of scope |
 | FIT encoding and the byte-exact round-trip assertion | Depends on message decoding |
 | TCX decoding | Depends on the canonical activity model |
 | FIT to TCX divergence report | Depends on TCX decoding |

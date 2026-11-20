@@ -32,6 +32,9 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   architecture byte), normal and compressed-timestamp data messages, local-type
   redefinition, and exact consumption of the data section. Array / opaque
   fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- Element-wise decoding of array fields into `BaseValue::Array`, and an absolute
+  `timestamp` on every data message reconstructed from compressed 5-bit offsets
+  (with 0x20 roll-over). G3 now compares array fields element-wise as well.
 - `moonfit dump <file>` emitting JSONL of raw field values, and Gate G3: a
   differential comparison of every scalar field of every corpus data message
   against fitparse (3313 messages), excluding fitparse's synthesised enhanced_*

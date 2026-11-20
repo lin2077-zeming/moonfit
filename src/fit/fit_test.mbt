@@ -309,10 +309,9 @@ test "invalid detection follows the per-type convention" {
 
 ///|
 let synth : Bytes = Bytes::from_array([
-  14, 16, 26, 8, 51, 0, 0, 0, 46, 70, 73, 84, 102, 241, 64, 0, 0, 20, 0, 2, 253,
-  4, 134, 0, 4, 133, 0, 232, 3, 0, 0, 251, 255, 255, 255, 64, 0, 0, 20, 0, 2, 253,
-  4, 134, 0, 4, 133, 0, 233, 3, 0, 0, 250, 255, 255, 255, 135, 234, 3, 0, 0, 249,
-  255, 255, 255, 239, 147,
+  14, 16, 26, 8, 44, 0, 0, 0, 46, 70, 73, 84, 39, 189, 64, 0, 0, 20, 0, 2, 253, 4,
+  134, 0, 4, 133, 0, 232, 3, 0, 0, 251, 255, 255, 255, 0, 233, 3, 0, 0, 250, 255,
+  255, 255, 65, 0, 0, 20, 0, 1, 0, 4, 133, 167, 249, 255, 255, 255, 32, 123,
 ])
 
 ///|
@@ -323,7 +322,6 @@ test "walker: corpus0 message and record counts" {
   assert_eq(@fit.count_global(msgs, 20), 45)
   assert_eq(@fit.count_global(msgs, 18), 1)
   assert_eq(@fit.count_global(msgs, 0), 1)
-  // local message type 1 is defined twice in every corpus file.
   let mut defs1 = 0
   for m in msgs {
     match m {
@@ -353,15 +351,52 @@ test "walker: session distance is read as raw centimetres" {
 }
 
 ///|
-test "walker: synthetic redefinition and compressed timestamp" {
+test "walker: array fields decode element-wise" {
+  let msgs = @fit.parse_messages(corpus0)
+  let data = @fit.data_messages(msgs)
+  // file_id.serial_number is uint32z[8], redacted to zero.
+  match data[0].fields[0].value {
+    @fit.Array(elems) => assert_eq(elems.length(), 8)
+    _ => fail("expected serial_number to be an array")
+  }
+  // session.time_in_hr_zone is uint32[5].
+  let mut zone_ok = false
+  for m in data {
+    if m.global == 18 {
+      for f in m.fields {
+        if f.def_num == 65 {
+          match f.value {
+            @fit.Array(e) => {
+              assert_eq(e.length(), 5)
+              zone_ok = true
+            }
+            _ => fail("expected time_in_hr_zone array")
+          }
+        }
+      }
+    }
+  }
+  assert_true(zone_ok)
+}
+
+///|
+test "walker: normal messages carry their timestamp field" {
+  let msgs = @fit.parse_messages(synth)
+  let data = @fit.data_messages(msgs)
+  assert_eq(data[0].timestamp, Some(1000L))
+  assert_eq(data[1].timestamp, Some(1001L))
+}
+
+///|
+test "walker: compressed timestamp reconstructs with roll-over" {
   let msgs = @fit.parse_messages(synth)
   let data = @fit.data_messages(msgs)
   assert_eq(data.length(), 3)
-  assert_eq(data[0].ts_offset, None)
   assert_eq(data[2].ts_offset, Some(7))
-  assert_eq(data[0].fields[1].value, @fit.Signed(-5L))
-  assert_eq(data[1].fields[1].value, @fit.Signed(-6L))
-  assert_eq(data[2].fields[0].value, @fit.Unsigned(1002UL))
+  // last=1001 (low bits 9); offset 7 < 9 rolls over by 0x20 -> 1031.
+  assert_eq(data[2].timestamp, Some(1031L))
+  assert_eq(data[2].fields.length(), 1)
+  assert_eq(data[2].fields[0].value, @fit.Signed(-7L))
   let mut defs = 0
   for m in msgs {
     match m {
@@ -374,7 +409,6 @@ test "walker: synthetic redefinition and compressed timestamp" {
 
 ///|
 test "walker: data message without a definition is rejected" {
-  // header + a bare data message (local 0) with no preceding definition.
   let b = Bytes::from_array([
     12, 0x10, 0xEA, 0x07, 1, 0, 0, 0, 0x2E, 0x46, 0x49, 0x54, 0x00, 0, 0,
   ])

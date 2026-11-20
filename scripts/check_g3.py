@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Gate G3: differential decode against an independent decoder (fitparse).
 
-Runs the native `moonfit dump` over every redacted corpus file and compares the
-raw field values, message by message, against fitparse. Only scalar fields that
-are actually present in the definition message are compared: fitparse
-synthesises enhanced_speed / enhanced_altitude from speed / altitude even when
-those fields are absent, and array fields (serial_number, time_in_*_zone) are
-carried as raw bytes by this module, so both are excluded. Where fitparse
-reports an invalid field as None, this module must report invalid=1.
+Runs the native `moonfit dump` over every redacted corpus file and compares
+field values, message by message, against fitparse. Scalars are compared
+directly; array fields (serial_number, time_in_*_zone) are compared
+element-wise, with fitparse's None mapped to the base type's invalid pattern.
+fitparse's synthesised enhanced_speed / enhanced_altitude fields are excluded
+because they are not present in the definition message.
 
 Run with --self-test to confirm the comparator detects a deliberate mismatch.
 """
@@ -22,6 +21,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "_build" / "native" / "release" / "build" / "cmd" / "moonfit"
 CORPUS = ROOT / "corpus" / "redacted"
+
+# Invalid value per base-type name, as the decoded scalar this module produces.
+INVALID = {
+    "enum": 255, "sint8": 127, "uint8": 255, "sint16": 32767, "uint16": 65535,
+    "sint32": 2147483647, "uint32": 4294967295, "uint8z": 0, "uint16z": 0,
+    "uint32z": 0, "byte": 255, "sint64": 9223372036854775807,
+    "uint64": 18446744073709551615, "uint64z": 0,
+}
+
+
+def base_name(t):
+    while hasattr(t, "type"):
+        t = t.type
+    return getattr(t, "name", str(t))
 
 
 def locate_cli():
@@ -47,24 +60,27 @@ def fitparse_messages(path):
     for m in ff.get_messages():
         if getattr(m, "type", None) != "data":
             continue
-        defset = {f.def_num for f in m.def_mesg.field_defs}
+        defmap = {fd.def_num: base_name(fd.type) for fd in m.def_mesg.field_defs}
         fields = {}
         for f in m.fields:
-            if f.def_num not in defset:
-                continue  # synthesised (enhanced_*)
-            raw = f.raw_value
-            if isinstance(raw, (tuple, list)):
-                continue  # array field, carried raw by moonfit
-            fields[f.def_num] = raw
-        out.append((m.mesg_num, fields))
+            if f.def_num not in defmap:
+                continue  # synthesised enhanced_*
+            fields[f.def_num] = f.raw_value
+        out.append((m.mesg_num, fields, defmap))
     return out
+
+
+def _scalar_eq(mine, raw):
+    if isinstance(raw, float):
+        return abs(float(mine) - raw) <= 1e-6
+    return mine == raw
 
 
 def compare(mine, theirs):
     failures = []
     if len(mine) != len(theirs):
         return [f"message count {len(mine)} != {len(theirs)}"]
-    for idx, (msg, (global_num, fields)) in enumerate(zip(mine, theirs)):
+    for idx, (msg, (global_num, fields, defmap)) in enumerate(zip(mine, theirs)):
         if msg["g"] != global_num:
             failures.append(f"msg{idx}: global {msg['g']} != {global_num}")
         mine_fields = {f["d"]: f for f in msg["f"]}
@@ -73,16 +89,27 @@ def compare(mine, theirs):
             if mf is None:
                 failures.append(f"msg{idx} def{def_num}: missing in moonfit")
                 continue
-            if raw is None:
+            code = defmap[def_num]
+            if isinstance(raw, (tuple, list)):
+                if not isinstance(mf["v"], list):
+                    failures.append(f"msg{idx} def{def_num}: expected array")
+                    continue
+                if len(mf["v"]) != len(raw):
+                    failures.append(f"msg{idx} def{def_num}: array len {len(mf['v'])} != {len(raw)}")
+                    continue
+                for k, (me, te) in enumerate(zip(mf["v"], raw)):
+                    if te is None:
+                        if me != INVALID.get(code):
+                            failures.append(f"msg{idx} def{def_num}[{k}]: invalid {me} != {INVALID.get(code)}")
+                    elif not _scalar_eq(me, te):
+                        failures.append(f"msg{idx} def{def_num}[{k}]: {me!r} != {te!r}")
+            elif raw is None:
                 if mf["i"] != 1 or mf["v"] is not None:
                     failures.append(f"msg{idx} def{def_num}: expected invalid, got {mf}")
             else:
                 if mf["i"] != 0:
                     failures.append(f"msg{idx} def{def_num}: unexpected invalid")
-                elif isinstance(raw, float):
-                    if abs(float(mf["v"]) - raw) > 1e-6:
-                        failures.append(f"msg{idx} def{def_num}: {mf['v']} != {raw}")
-                elif mf["v"] != raw:
+                elif not _scalar_eq(mf["v"], raw):
                     failures.append(f"msg{idx} def{def_num}: {mf['v']!r} != {raw!r}")
     return failures
 
@@ -97,9 +124,14 @@ def self_test(exe):
         return 1
     print("  ok   baseline differential comparison is clean")
     poisoned = json.loads(json.dumps(mine))
-    for f in poisoned[0]["f"]:
-        if f["i"] == 0 and isinstance(f["v"], int):
-            f["v"] = f["v"] + 1
+    done = False
+    for msg in poisoned:
+        for f in msg["f"]:
+            if f["i"] == 0 and isinstance(f["v"], int):
+                f["v"] += 1
+                done = True
+                break
+        if done:
             break
     bad = compare(poisoned, theirs)
     ok = len(bad) >= 1
@@ -133,7 +165,7 @@ def main(argv):
             for f in fails[:10]:
                 print(f"    - {f}")
         return 1
-    print(f"Gate G3 OK: {total} data messages across {len(list(CORPUS.glob('*.fit')))} files match fitparse.")
+    print(f"Gate G3 OK: {total} data messages across {len(list(CORPUS.glob('*.fit')))} files match fitparse (scalars + arrays).")
     return 0
 
 
