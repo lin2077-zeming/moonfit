@@ -68,6 +68,12 @@ jobs:
       - name: Build native CLI
         run: moon build cmd/moonfit --target native --release --deny-warn
 
+      - name: Install fitparse (G3 reference decoder)
+        run: python3 -m pip install --quiet fitparse
+
+      - name: Gate G3 - differential decode vs fitparse
+        run: python3 scripts/check_g3.py
+
       - name: Test native target
         run: moon test --target native --deny-warn
 

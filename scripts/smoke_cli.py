@@ -19,6 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD_DIR = ROOT / "_build" / "native" / "release" / "build" / "cmd" / "moonfit"
+CORPUS = ROOT / "corpus" / "redacted"
 
 
 def locate_cli() -> Path | None:
@@ -65,6 +66,8 @@ def cases(version: str):
         (["--help"], 0, lambda o: "Usage:" in o and "units" in o, lambda e: e == ""),
         (["help"], 0, lambda o: "Usage:" in o, lambda e: e == ""),
         (["version", "extra"], 2, lambda o: True, lambda e: e != ""),
+        (["dump", str(CORPUS / "ride-20260803.fit")], 0, lambda o: '"g":20' in o, lambda e: e == ""),
+        (["dump"], 2, lambda o: o == "", lambda e: "needs a file" in e),
     ]
 
 

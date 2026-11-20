@@ -28,6 +28,14 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   invalid conventions (signed max-positive, unsigned all-ones, `z` types zero,
   string leading-zero) are compared on the decoded bit pattern so they are
   endian-correct.
+- `src/fit` record-stream walker: definition messages (endian from the
+  architecture byte), normal and compressed-timestamp data messages, local-type
+  redefinition, and exact consumption of the data section. Array / opaque
+  fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- `moonfit dump <file>` emitting JSONL of raw field values, and Gate G3: a
+  differential comparison of every scalar field of every corpus data message
+  against fitparse (3313 messages), excluding fitparse's synthesised enhanced_*
+  fields and array fields.
 - `cmd/moonfit` with `version` and `units` subcommands, built on
   `moonbitlang/core/argparse`. Exit 0 on success, exit 2 on a usage error,
   diagnostics on stderr.
