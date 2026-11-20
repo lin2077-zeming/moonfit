@@ -1,5 +1,5 @@
 ///|
-pub suberror FitError {
+pub(all) suberror FitError {
   Truncated(String)
   BadSignature
   BadHeaderSize(Int32)

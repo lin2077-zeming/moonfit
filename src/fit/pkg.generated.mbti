@@ -39,7 +39,7 @@ pub fn read_uint(Bytes, Int32, Int32, Endian) -> UInt64 raise FitError
 pub fn write_uint(UInt64, Int32, Endian) -> Bytes
 
 // Errors
-pub suberror FitError {
+pub(all) suberror FitError {
   Truncated(String)
   BadSignature
   BadHeaderSize(Int32)
