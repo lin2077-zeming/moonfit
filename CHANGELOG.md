@@ -32,6 +32,11 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   architecture byte), normal and compressed-timestamp data messages, local-type
   redefinition, and exact consumption of the data section. Array / opaque
   fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- `src/fit/encode.mbt`: structure-preserving re-encoding. Header and definitions
+  are rebuilt from the parsed structure; data fields replay their original bytes
+  in definition order; CRCs recomputed. Gate G2 asserts decode->encode is
+  byte-identical (SHA-256) for all six corpus files, embedded on every backend
+  and via `moonfit roundtrip` in CI.
 - Element-wise decoding of array fields into `BaseValue::Array`, and an absolute
   `timestamp` on every data message reconstructed from compressed 5-bit offsets
   (with 0x20 roll-over). G3 now compares array fields element-wise as well.

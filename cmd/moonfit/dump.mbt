@@ -90,3 +90,30 @@ fn run_dump(argv : Array[String]) -> Int32 {
   }
   0
 }
+
+///|
+fn run_roundtrip(argv : Array[String]) -> Int32 {
+  if argv.length() < 3 {
+    eprintln("moonfit: roundtrip needs <in.fit> <out.fit>")
+    return 2
+  }
+  let data = @fs.read_file_to_bytes(argv[1]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[1]}")
+      return 2
+    }
+  }
+  let out = @fit.encode_fit(data) catch {
+    _ => {
+      eprintln("moonfit: cannot re-encode \{argv[1]}")
+      return 2
+    }
+  }
+  @fs.write_bytes_to_file(argv[2], out) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot write \{argv[2]}")
+      return 2
+    }
+  }
+  0
+}

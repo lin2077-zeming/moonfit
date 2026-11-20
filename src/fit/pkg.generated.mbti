@@ -16,6 +16,8 @@ pub fn data_messages(Array[Message]) -> Array[DataMessage]
 
 pub fn encode_base(BaseType, BaseValue, Endian) -> Bytes raise FitError
 
+pub fn encode_fit(Bytes) -> Bytes raise FitError
+
 pub fn endian_from_byte(Int32) -> Endian
 
 pub fn file_crc_ok(Bytes) -> Bool
@@ -107,6 +109,7 @@ pub(all) struct Definition {
   local_id : Int32
   global : Int32
   endian : Endian
+  has_dev : Bool
   fields : Array[FieldDef]
   dev_fields : Array[FieldDef]
 }
@@ -138,6 +141,7 @@ pub(all) struct FieldValue {
   def_num : Int32
   value : BaseValue
   invalid : Bool
+  raw : Bytes
 }
 pub fn FieldValue::equal(Self, Self) -> Bool
 pub fn FieldValue::not_equal(Self, Self) -> Bool

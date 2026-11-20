@@ -32,6 +32,7 @@ pub(all) struct Definition {
   local_id : Int32
   global : Int32
   endian : Endian
+  has_dev : Bool
   fields : Array[FieldDef]
   dev_fields : Array[FieldDef]
 }
@@ -48,6 +49,7 @@ pub(all) struct FieldValue {
   def_num : Int32
   value : BaseValue
   invalid : Bool
+  raw : Bytes
 }
 
 ///|
@@ -154,7 +156,8 @@ fn read_data(
   for f in d.fields {
     let value = read_field(f.base, f.size, data, cur, d.endian)
     let invalid = is_invalid(f.base, data, cur, d.endian)
-    fields.push({ def_num: f.def_num, value, invalid, })
+    let raw = data.exact_view(start=cur, end=cur + f.size).to_owned()
+    fields.push({ def_num: f.def_num, value, invalid, raw, })
     cur = cur + f.size
   }
   let mut dev_total = 0
@@ -165,7 +168,7 @@ fn read_data(
     raise FitError::Truncated("developer data exceeds file length")
   }
   let dev = if dev_total > 0 {
-    data.exact_view(start=cur, end=cur + dev_total).data()
+    data.exact_view(start=cur, end=cur + dev_total).to_owned()
   } else {
     Bytes::from_array([])
   }
@@ -267,7 +270,7 @@ pub fn parse_messages(data : Bytes) -> Array[Message] raise FitError {
           j = j + 1
         }
       }
-      let d = { local_id, global, endian, fields, dev_fields, }
+      let d = { local_id, global, endian, has_dev, fields, dev_fields, }
       defs[local_id] = Some(d)
       out.push(Def(d))
       off = cur

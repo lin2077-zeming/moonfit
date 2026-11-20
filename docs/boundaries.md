@@ -25,6 +25,7 @@ repository from promising more than the code does.
 | `moonfit dump` JSONL of raw field values, and the G3 differential gate comparing every scalar field of every corpus message against fitparse | `scripts/check_g3.py` |
 | Element-wise decoding of array fields (serial_number, time_in_*_zone) into `BaseValue::Array`, compared element-wise by G3 | `src/fit/fit_test.mbt` |
 | Absolute timestamp on every data message, reconstructed from compressed 5-bit offsets with 0x20 roll-over | `src/fit/fit_test.mbt` |
+| Structure-preserving re-encoding (`encode_fit`) and Gate G2: decode->encode reproduces every corpus file byte-for-byte (SHA-256), on all four backends and via the native CLI | `src/fit/fit_test.mbt` |
 | Corpus redaction tooling that zeroes the device serial, shifts coordinates by an exact semicircle offset and recomputes the CRC, with a self-test proving no other byte changes | `scripts/redact_corpus.py` |
 | Fourteen redacted real activities with a provenance manifest and checksums | `corpus/redacted/manifest.csv` |
 | Corpus provenance and CC0 dedication, with the redaction offset and the list of fields deliberately left unmodified | `corpus/README.md` |

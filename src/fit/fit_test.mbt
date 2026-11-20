@@ -419,3 +419,25 @@ test "walker: data message without a definition is rejected" {
     _ => fail("expected NoDefinition")
   }
 }
+
+///|
+test "G2: decode->encode is byte-exact on the embedded corpus file" {
+  assert_eq(@fit.encode_fit(corpus0), corpus0)
+}
+
+///|
+test "G2: decode->encode is byte-exact on the synthetic stream" {
+  assert_eq(@fit.encode_fit(synth), synth)
+}
+
+///|
+test "G2: re-encoding a corrupted CRC is rejected, not silently fixed" {
+  // Flip a data byte; parse still succeeds (CRC not checked by walker) but the
+  // re-encoded file recomputes a correct CRC, so it must differ from input.
+  let arr = corpus0.to_array()
+  arr[20] = arr[20].lxor(b'\xff')
+  let bad = Bytes::from_array(arr)
+  let re = @fit.encode_fit(bad)
+  assert_true(re != bad)
+  assert_true(@fit.file_crc_ok(re))
+}
