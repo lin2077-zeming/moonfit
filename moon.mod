@@ -19,4 +19,5 @@ description = "Spec-driven Garmin FIT activity codec with byte-exact round-trip,
 
 import {
   "moonbitlang/x@0.5.7",
+  "Milky2018/xml@0.6.1",
 }

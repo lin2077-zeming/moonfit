@@ -32,6 +32,12 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   architecture byte), normal and compressed-timestamp data messages, local-type
   redefinition, and exact consumption of the data section. Array / opaque
   fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- `src/tcx`: TCX decoding into the canonical model using the Milky2018/xml pull
+  parser. Tolerates UTF-8 BOM and namespace prefixes; handles the rich iGPSPORT
+  and minimal Huawei variants; normalises non-standard Sport values (e.g.
+  "户外跑步") and flags them. Maps Lap/TotalTimeSeconds to timer_s per law L6.
+  `moonfit tcx` emits a JSON summary; a CI gate cross-checks all 14 corpus .tcx
+  against an independent ElementTree parse.
 - `src/model`: canonical activity model (TrackPoint/Lap/Activity) extracting FIT
   fields into native units with invalid-as-None and fixed (global, def_num)
   provenance. `src/metrics`: device + GPS (haversine) distance, three-way time,

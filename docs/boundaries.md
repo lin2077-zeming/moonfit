@@ -28,6 +28,7 @@ repository from promising more than the code does.
 | Structure-preserving re-encoding (`encode_fit`) and Gate G2: decode->encode reproduces every corpus file byte-for-byte (SHA-256), on all four backends and via the native CLI | `src/fit/fit_test.mbt` |
 | Canonical activity model with invalid-as-None extraction and fixed (global, def_num) provenance | `src/model/model.mbt` |
 | Derived metrics (device + GPS distance, three-way time, pace, per-km splits, smoothing-window ascent, caller-defined HR zones) and Gate G4 vs an independent Karney reference | `scripts/check_g4.py` |
+| TCX decoding into the same canonical model (BOM + namespace tolerance, iGPSPORT/Huawei variants, non-standard Sport normalisation), cross-checked on all 14 corpus .tcx against an independent XML parse | `scripts/check_tcx.py` |
 | Corpus redaction tooling that zeroes the device serial, shifts coordinates by an exact semicircle offset and recomputes the CRC, with a self-test proving no other byte changes | `scripts/redact_corpus.py` |
 | Fourteen redacted real activities with a provenance manifest and checksums | `corpus/redacted/manifest.csv` |
 | Corpus provenance and CC0 dedication, with the redaction offset and the list of fields deliberately left unmodified | `corpus/README.md` |

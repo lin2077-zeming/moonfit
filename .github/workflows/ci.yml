@@ -80,6 +80,9 @@ jobs:
       - name: Gate G4 - derived metrics vs independent reference
         run: python3 scripts/check_g4.py
 
+      - name: TCX decode vs independent XML parse
+        run: python3 scripts/check_tcx.py
+
       - name: Test native target
         run: moon test --target native --deny-warn
 

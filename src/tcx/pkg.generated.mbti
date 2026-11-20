@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/src/tcx"
+
+import {
+  "lin2077-zeming/moonfit/src/model",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn parse(Bytes) -> TcxActivity raise TcxError
+
+// Errors
+pub(all) suberror TcxError {
+  Malformed(String)
+}
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct TcxActivity {
+  activity : @model.Activity
+  sport_raw : String
+  sport_nonstandard : Bool
+}
+pub fn TcxActivity::equal(Self, Self) -> Bool
+pub fn TcxActivity::not_equal(Self, Self) -> Bool
+pub fn TcxActivity::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

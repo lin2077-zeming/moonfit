@@ -2,6 +2,7 @@ import {
   "lin2077-zeming/moonfit/src/fit",
   "lin2077-zeming/moonfit/src/model",
   "lin2077-zeming/moonfit/src/metrics",
+  "lin2077-zeming/moonfit/src/tcx",
   "moonbitlang/core/string",
   "lin2077-zeming/moonfit/src/units",
   "moonbitlang/core/argparse",

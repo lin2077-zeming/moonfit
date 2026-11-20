@@ -171,3 +171,66 @@ fn run_metrics(argv : Array[String]) -> Int32 {
   println(@metrics.to_json(@metrics.compute(act, bounds, window)))
   0
 }
+
+///|
+fn opt_i32_json(v : Int32?) -> String {
+  match v {
+    Some(x) => x.to_string()
+    None => "null"
+  }
+}
+
+///|
+fn run_tcx(argv : Array[String]) -> Int32 {
+  if argv.length() < 2 {
+    eprintln("moonfit: tcx needs a file argument")
+    return 2
+  }
+  let data = @fs.read_file_to_bytes(argv[1]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[1]}")
+      return 2
+    }
+  }
+  let t = @tcx.parse(data) catch {
+    @tcx.Malformed(msg) => {
+      eprintln("moonfit: malformed TCX: \{msg}")
+      return 2
+    }
+  }
+  let a = t.activity
+  let first = if a.points.length() > 0 { a.points[0].timestamp } else { 0L }
+  let last = if a.points.length() > 0 {
+    a.points[a.points.length() - 1].timestamp
+  } else {
+    0L
+  }
+  let avghr = opt_i32_json(a.avg_hr)
+  let maxhr = opt_i32_json(a.max_hr)
+  println(
+    "{\"sport\":\"" +
+    a.sport +
+    "\",\"sport_raw\":\"" +
+    t.sport_raw +
+    "\",\"sport_nonstandard\":" +
+    (if t.sport_nonstandard { "true" } else { "false" }) +
+    ",\"n_points\":" +
+    a.points.length().to_string() +
+    ",\"n_laps\":" +
+    a.laps.length().to_string() +
+    ",\"device_distance_m\":" +
+    a.device_distance_m.to_string() +
+    ",\"timer_s\":" +
+    a.timer_s.to_string() +
+    ",\"avg_hr\":" +
+    avghr +
+    ",\"max_hr\":" +
+    maxhr +
+    ",\"first_ts\":" +
+    first.to_string() +
+    ",\"last_ts\":" +
+    last.to_string() +
+    "}",
+  )
+  0
+}

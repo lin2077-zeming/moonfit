@@ -66,6 +66,9 @@ fn main {
   if argv.length() > 0 && argv[0] == "metrics" {
     @env.exit(run_metrics(argv))
   }
+  if argv.length() > 0 && argv[0] == "tcx" {
+    @env.exit(run_tcx(argv))
+  }
   if argv.length() == 0 {
     eprintln("moonfit: no command given")
     eprintln("")

@@ -1,0 +1,7 @@
+import {
+  "Milky2018/xml",
+  "lin2077-zeming/moonfit/src/model",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}

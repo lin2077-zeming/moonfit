@@ -70,6 +70,7 @@ def cases(version: str):
         (["dump"], 2, lambda o: o == "", lambda e: "needs a file" in e),
         (["roundtrip"], 2, lambda o: o == "", lambda e: "needs" in e),
         (["metrics"], 2, lambda o: o == "", lambda e: "needs a file" in e),
+        (["tcx"], 2, lambda o: o == "", lambda e: "needs a file" in e),
     ]
 
 
