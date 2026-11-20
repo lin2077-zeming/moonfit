@@ -117,3 +117,57 @@ fn run_roundtrip(argv : Array[String]) -> Int32 {
   }
   0
 }
+
+///|
+fn to_int_def(s : String, def : Int32) -> Int32 {
+  @string.parse_int(s) catch {
+    _ => def
+  }
+}
+
+///|
+fn parse_bounds(csv : String) -> Array[Int32] {
+  let out : Array[Int32] = []
+  if csv == "" {
+    return out
+  }
+  let mut cur = ""
+  for c in csv {
+    if c == ',' {
+      out.push(to_int_def(cur, 0))
+      cur = ""
+    } else {
+      cur = cur + c.to_string()
+    }
+  }
+  out.push(to_int_def(cur, 0))
+  out
+}
+
+///|
+fn run_metrics(argv : Array[String]) -> Int32 {
+  if argv.length() < 2 {
+    eprintln("moonfit: metrics needs a file argument")
+    return 2
+  }
+  let bounds = if argv.length() > 2 {
+    parse_bounds(argv[2])
+  } else {
+    [100, 120, 140, 160]
+  }
+  let window = if argv.length() > 3 { to_int_def(argv[3], 5) } else { 5 }
+  let data = @fs.read_file_to_bytes(argv[1]) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{argv[1]}")
+      return 2
+    }
+  }
+  let act = @model.from_fit(@fit.parse_messages(data)) catch {
+    _ => {
+      eprintln("moonfit: cannot decode \{argv[1]}")
+      return 2
+    }
+  }
+  println(@metrics.to_json(@metrics.compute(act, bounds, window)))
+  0
+}

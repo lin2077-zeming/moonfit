@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/src/metrics"
+
+import {
+  "lin2077-zeming/moonfit/src/model",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compute(@model.Activity, Array[Int32], Int32) -> Metrics
+
+pub fn haversine(Double, Double, Double, Double) -> Double
+
+pub fn to_json(Metrics) -> String
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct Metrics {
+  device_distance_m : Double
+  gps_distance_m : Double
+  elapsed_s : Double
+  timer_s : Double
+  moving_s : Double
+  avg_speed_mps : Double
+  avg_pace_min_per_km : Double
+  device_ascent_m : Double
+  device_descent_m : Double
+  computed_ascent_m : Double
+  hr_zones : Array[ZoneTime]
+  splits : Array[Split]
+}
+pub fn Metrics::equal(Self, Self) -> Bool
+pub fn Metrics::not_equal(Self, Self) -> Bool
+pub fn Metrics::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Split {
+  index : Int32
+  end_distance_m : Double
+  time_s : Int64
+}
+pub fn Split::equal(Self, Self) -> Bool
+pub fn Split::not_equal(Self, Self) -> Bool
+pub fn Split::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct ZoneTime {
+  lower : Int32?
+  upper : Int32?
+  seconds : Int64
+}
+pub fn ZoneTime::equal(Self, Self) -> Bool
+pub fn ZoneTime::not_equal(Self, Self) -> Bool
+pub fn ZoneTime::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

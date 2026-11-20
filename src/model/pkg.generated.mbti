@@ -1,0 +1,68 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/src/model"
+
+import {
+  "lin2077-zeming/moonfit/src/fit",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn from_fit(Array[@fit.Message]) -> Activity raise @fit.FitError
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct Activity {
+  sport : String
+  sub_sport : String
+  start_time : Int64
+  points : Array[TrackPoint]
+  laps : Array[Lap]
+  device_distance_m : Double
+  elapsed_s : Double
+  timer_s : Double
+  moving_s : Double
+  device_ascent_m : Double
+  device_descent_m : Double
+  avg_hr : Int32?
+  max_hr : Int32?
+}
+pub fn Activity::equal(Self, Self) -> Bool
+pub fn Activity::not_equal(Self, Self) -> Bool
+pub fn Activity::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Lap {
+  start_time : Int64
+  elapsed_s : Double
+  timer_s : Double
+  distance_m : Double
+  ascent_m : Double
+  descent_m : Double
+  avg_hr : Int32?
+  max_hr : Int32?
+}
+pub fn Lap::equal(Self, Self) -> Bool
+pub fn Lap::not_equal(Self, Self) -> Bool
+pub fn Lap::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct TrackPoint {
+  timestamp : Int64
+  lat : Double?
+  lon : Double?
+  altitude_m : Double?
+  distance_m : Double?
+  speed_mps : Double?
+  heart_rate : Int32?
+  cadence : Int32?
+  temperature : Int32?
+}
+pub fn TrackPoint::equal(Self, Self) -> Bool
+pub fn TrackPoint::not_equal(Self, Self) -> Bool
+pub fn TrackPoint::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

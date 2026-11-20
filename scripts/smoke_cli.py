@@ -69,6 +69,7 @@ def cases(version: str):
         (["dump", str(CORPUS / "ride-20260803.fit")], 0, lambda o: '"g":20' in o, lambda e: e == ""),
         (["dump"], 2, lambda o: o == "", lambda e: "needs a file" in e),
         (["roundtrip"], 2, lambda o: o == "", lambda e: "needs" in e),
+        (["metrics"], 2, lambda o: o == "", lambda e: "needs a file" in e),
     ]
 
 

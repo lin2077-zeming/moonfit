@@ -32,6 +32,13 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   architecture byte), normal and compressed-timestamp data messages, local-type
   redefinition, and exact consumption of the data section. Array / opaque
   fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- `src/model`: canonical activity model (TrackPoint/Lap/Activity) extracting FIT
+  fields into native units with invalid-as-None and fixed (global, def_num)
+  provenance. `src/metrics`: device + GPS (haversine) distance, three-way time,
+  pace, per-km splits from device distance, trailing-window computed ascent, and
+  caller-defined heart-rate zone durations. `moonfit metrics` emits JSON; Gate G4
+  cross-checks against geographiclib Karney plus identical ascent/zone/split
+  algorithms.
 - `src/fit/encode.mbt`: structure-preserving re-encoding. Header and definitions
   are rebuilt from the parsed structure; data fields replay their original bytes
   in definition order; CRCs recomputed. Gate G2 asserts decode->encode is

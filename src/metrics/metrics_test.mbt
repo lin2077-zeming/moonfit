@@ -1,0 +1,68 @@
+///|
+test "haversine: one degree of latitude on the sphere" {
+  let d = @metrics.haversine(0.0, 0.0, 1.0, 0.0)
+  assert_true((d - 111194.92664455873).abs() < 0.000001)
+}
+
+///|
+test "metrics: synthetic activity splits, zones and ascent" {
+  let act : @model.Activity = {
+    sport: "cycling",
+    sub_sport: "road",
+    start_time: 0L,
+    points: [
+      {
+        timestamp: 0L,
+        lat: None,
+        lon: None,
+        altitude_m: Some(0.0),
+        distance_m: Some(0.0),
+        speed_mps: None,
+        heart_rate: Some(110),
+        cadence: None,
+        temperature: None,
+      },
+      {
+        timestamp: 10L,
+        lat: None,
+        lon: None,
+        altitude_m: Some(10.0),
+        distance_m: Some(1000.0),
+        speed_mps: None,
+        heart_rate: Some(130),
+        cadence: None,
+        temperature: None,
+      },
+      {
+        timestamp: 20L,
+        lat: None,
+        lon: None,
+        altitude_m: Some(20.0),
+        distance_m: Some(2000.0),
+        speed_mps: None,
+        heart_rate: Some(150),
+        cadence: None,
+        temperature: None,
+      },
+    ],
+    laps: [],
+    device_distance_m: 2000.0,
+    elapsed_s: 20.0,
+    timer_s: 20.0,
+    moving_s: 20.0,
+    device_ascent_m: 20.0,
+    device_descent_m: 0.0,
+    avg_hr: None,
+    max_hr: None,
+  }
+  let m = @metrics.compute(act, [120, 140], 1)
+  assert_eq(m.computed_ascent_m, 20.0)
+  assert_eq(m.gps_distance_m, 0.0)
+  assert_eq(m.hr_zones.length(), 3)
+  assert_eq(m.hr_zones[0].seconds, 10L)
+  assert_eq(m.hr_zones[1].seconds, 10L)
+  assert_eq(m.hr_zones[2].seconds, 0L)
+  assert_eq(m.splits.length(), 2)
+  assert_eq(m.splits[0].time_s, 10L)
+  assert_eq(m.splits[1].time_s, 10L)
+}
