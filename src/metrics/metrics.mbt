@@ -59,6 +59,7 @@ pub(all) struct Metrics {
   hr_zones : Array[ZoneTime]
   splits : Array[Split]
   split_basis : String
+  splits_truncated : Bool
 }
 
 ///|
@@ -199,8 +200,19 @@ fn round_i64(x : Double) -> Int64 {
 // kilometres 1..N), and uses the previous *boundary* time as the next split's
 // start. Splits are elapsed-time (wall clock) basis: they include auto-pause;
 // see split_basis and docs/metrics.md.
-fn splits(points : Array[@model.TrackPoint]) -> Array[Split] {
+let max_total_distance_m : Double = 1000000.0
+
+///|
+let max_jump_m : Double = 100000.0
+
+///|
+// Per-km splits with linear interpolation; see docs/metrics.md. Returns splits
+// plus a truncation flag: distance beyond max_total_distance_m or a single jump
+// beyond max_jump_m stops generation and sets the flag (never silent), bounding
+// work so a hostile uint32 distance cannot cause O(distance) objects.
+fn splits(points : Array[@model.TrackPoint]) -> (Array[Split], Bool) {
   let out : Array[Split] = []
+  let mut truncated = false
   let mut initialized = false
   let mut prev_d = 0.0
   let mut prev_t = 0L
@@ -208,7 +220,11 @@ fn splits(points : Array[@model.TrackPoint]) -> Array[Split] {
   let mut last_boundary_t = 0L
   for p in points {
     match p.distance_m {
-      Some(d) =>
+      Some(d) => {
+        if d > max_total_distance_m {
+          truncated = true
+          break
+        }
         if !initialized {
           prev_d = d
           prev_t = p.timestamp
@@ -216,25 +232,30 @@ fn splits(points : Array[@model.TrackPoint]) -> Array[Split] {
           last_boundary_t = p.timestamp
           initialized = true
         } else if d > prev_d {
-          while next_km.to_double() * 1000.0 <= d {
-            let ratio = (next_km.to_double() * 1000.0 - prev_d) / (d - prev_d)
-            let boundary_t = prev_t +
-              round_i64(ratio * (p.timestamp - prev_t).to_double())
-            out.push({
-              index: next_km,
-              end_distance_m: next_km.to_double() * 1000.0,
-              time_s: boundary_t - last_boundary_t,
-            })
-            last_boundary_t = boundary_t
-            next_km = next_km + 1
+          if d - prev_d > max_jump_m {
+            truncated = true
+          } else {
+            while next_km.to_double() * 1000.0 <= d {
+              let ratio = (next_km.to_double() * 1000.0 - prev_d) / (d - prev_d)
+              let boundary_t = prev_t +
+                round_i64(ratio * (p.timestamp - prev_t).to_double())
+              out.push({
+                index: next_km,
+                end_distance_m: next_km.to_double() * 1000.0,
+                time_s: boundary_t - last_boundary_t,
+              })
+              last_boundary_t = boundary_t
+              next_km = next_km + 1
+            }
           }
           prev_d = d
           prev_t = p.timestamp
         }
+      }
       None => ()
     }
   }
-  out
+  (out, truncated)
 }
 
 ///|
@@ -251,6 +272,7 @@ pub fn compute(
   }
   let gps_avg_speed = if act.timer_s > 0.0 { gps / act.timer_s } else { 0.0 }
   let pace = if avg_speed > 0.0 { 1000.0 / avg_speed / 60.0 } else { 0.0 }
+  let (sp, sp_trunc) = splits(act.points)
   let alts : Array[Double] = []
   for p in act.points {
     match p.altitude_m {
@@ -271,19 +293,16 @@ pub fn compute(
     device_descent_m: act.device_descent_m,
     computed_ascent_m: computed_ascent(alts, ascent_window),
     hr_zones: hr_zones(act.points, hr_bounds),
-    splits: splits(act.points),
+    splits: sp,
     split_basis: "elapsed",
+    splits_truncated: sp_trunc,
   }
 } ///|
 
 ///|
 pub fn to_json(m : Metrics) -> String {
-  let mut zones = ""
-  let mut i = 0
+  let zparts : Array[String] = []
   for z in m.hr_zones {
-    if i > 0 {
-      zones = zones + ","
-    }
     let lo = match z.lower {
       Some(v) => v.to_string()
       None => "null"
@@ -292,31 +311,27 @@ pub fn to_json(m : Metrics) -> String {
       Some(v) => v.to_string()
       None => "null"
     }
-    zones = zones +
+    zparts.push(
       "{\"lower\":" +
       lo +
       ",\"upper\":" +
       hi +
       ",\"seconds\":" +
       z.seconds.to_string() +
-      "}"
-    i = i + 1
+      "}",
+    )
   }
-  let mut sp = ""
-  let mut j = 0
+  let sparts : Array[String] = []
   for s in m.splits {
-    if j > 0 {
-      sp = sp + ","
-    }
-    sp = sp +
+    sparts.push(
       "{\"index\":" +
       s.index.to_string() +
       ",\"end_distance_m\":" +
       s.end_distance_m.to_string() +
       ",\"time_s\":" +
       s.time_s.to_string() +
-      "}"
-    j = j + 1
+      "}",
+    )
   }
   "{\"device_distance_m\":" +
   m.device_distance_m.to_string() +
@@ -341,9 +356,15 @@ pub fn to_json(m : Metrics) -> String {
   ",\"computed_ascent_m\":" +
   m.computed_ascent_m.to_string() +
   ",\"hr_zones\":[" +
-  zones +
+  zparts.join(",") +
   "]" +
   ",\"splits\":[" +
-  sp +
-  "]}"
+  sparts.join(",") +
+  "]" +
+  ",\"split_basis\":\"" +
+  m.split_basis +
+  "\"" +
+  ",\"splits_truncated\":" +
+  (if m.splits_truncated { "true" } else { "false" }) +
+  "}"
 }

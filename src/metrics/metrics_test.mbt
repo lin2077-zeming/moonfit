@@ -187,3 +187,36 @@ test "P0-3: trimmed track does not backfill leading kilometres" {
   assert_eq(m.splits[0].index, 4)
   assert_eq(m.splits[0].time_s, 10L)
 }
+
+///|
+test "P0-5: hostile uint32 distance truncates splits instead of DoS" {
+  let m = @metrics.compute(
+    act_of([pt(0L, 0.0), pt(1L, 4294967295.0)], 4294967295.0, 1.0),
+    [],
+    1,
+  )
+  assert_true(m.splits_truncated)
+  assert_eq(m.splits.length(), 0)
+}
+
+///|
+test "P0-5: single jump beyond 100 km truncates" {
+  let m = @metrics.compute(
+    act_of([pt(0L, 0.0), pt(10L, 200000.0)], 200000.0, 10.0),
+    [],
+    1,
+  )
+  assert_true(m.splits_truncated)
+  assert_eq(m.splits.length(), 0)
+}
+
+///|
+test "P0-5: normal track is not truncated" {
+  let m = @metrics.compute(
+    act_of([pt(0L, 0.0), pt(30L, 3000.0)], 3000.0, 30.0),
+    [],
+    1,
+  )
+  assert_true(!m.splits_truncated)
+  assert_eq(m.splits.length(), 3)
+}
