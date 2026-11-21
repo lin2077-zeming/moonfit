@@ -42,19 +42,19 @@ pub fn redact(
 ) -> Bytes raise @fit.FitError {
   let h = @fit.parse_header(data)
   let msgs = @fit.parse_messages(data)
-  let endian_of : Array[@fit.Endian?] = Array::make(16, None)
-  for m in msgs {
-    match m {
-      @fit.Def(d) => endian_of[d.local_id] = Some(d.endian)
-      _ => ()
-    }
-  }
+  // Track the currently-effective definition per local id as we walk, so a
+  // local type redefined with a different architecture uses the endian that
+  // was in force at each data message (not the last definition).
+  let defs : Array[@fit.Definition?] = Array::make(16, None)
   let total_records = @fit.count_global(msgs, 20)
   let out : Array[@fit.Message] = []
   let mut rec_idx = 0
   for m in msgs {
     match m {
-      @fit.Def(_) => out.push(m)
+      @fit.Def(d) => {
+        defs[d.local_id] = Some(d)
+        out.push(m)
+      }
       @fit.Data(dm) => {
         let mut keep = true
         if dm.global == 20 {
@@ -62,8 +62,8 @@ pub fn redact(
           rec_idx = rec_idx + 1
         }
         if keep {
-          let e = match endian_of[dm.local_id] {
-            Some(x) => x
+          let e = match defs[dm.local_id] {
+            Some(d) => d.endian
             None => @fit.Little
           }
           let nf : Array[@fit.FieldValue] = []
