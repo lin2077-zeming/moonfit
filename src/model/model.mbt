@@ -191,9 +191,13 @@ fn sub_sport_name(code : Int64) -> String {
 ///|
 fn track_point(m : @fit.DataMessage) -> TrackPoint {
   {
-    timestamp: match int_opt(m, 253) {
+    timestamp: match m.timestamp {
       Some(v) => v
-      None => 0L
+      None =>
+        match int_opt(m, 253) {
+          Some(v) => v
+          None => 0L
+        }
     },
     lat: degrees_opt(m, 0),
     lon: degrees_opt(m, 1),
