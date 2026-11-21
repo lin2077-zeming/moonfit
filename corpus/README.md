@@ -64,9 +64,22 @@ Deliberately **not** changed:
   outside the serial, coordinate and trailing-CRC spans differs, that the file
   length is unchanged, and that the redacted file still walks exactly.
 
-Residual exposure: the **shape** of each route is preserved. Only its absolute
-position moved. The start and end points no longer correspond to the author's
-residence.
+No track points are trimmed. The shortest ride (`ride-20260803`) has only 45
+record messages, so removing 30 from each end would delete the whole track; the
+corpus therefore uses trim=0 for every file. The `moonfit redact` command still
+accepts an optional head/tail trim count, an optional `--strip-hr` flag that
+invalidates heart-rate fields, and an optional `--report <path>` flag that writes
+a machine-readable JSON list of what changed (serial zeroed, lat/lon shifted,
+heart-rate stripped, records trimmed, fields changed, and the two deltas). Those
+capabilities are covered by `src/redact/redact_test.mbt`; the committed corpus
+exercises the trim=0, heart-rate-preserving path.
+
+Residual exposure: the **shape** of each route is preserved, including its start
+and end points. Only the absolute position moved, by the fixed offset published
+above. Because that offset is published, the translation is reversible: it
+obscures the absolute location but does not remove the route geometry. Trimming
+the head/tail (available via `moonfit redact`) is the option that would remove the
+start/end vicinity, and it is not applied to this corpus.
 
 ## Integrity
 

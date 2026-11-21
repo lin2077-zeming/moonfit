@@ -93,7 +93,7 @@ moonfit roundtrip <in> <out>    structure-preserving re-encode (byte-exact)
 moonfit metrics <f.fit> [bounds] [window]   derived metrics (JSON)
 moonfit tcx <f.tcx>             TCX -> canonical model summary (JSON)
 moonfit diff <f.fit> <f.tcx>    FIT vs TCX divergence report (JSON)
-moonfit redact <in> <out> [trim] [dlat] [dlon]   native redaction
+moonfit redact <in> <out> [trim] [dlat] [dlon] [--strip-hr] [--report path]   native redaction
 ```
 
 ## Verification

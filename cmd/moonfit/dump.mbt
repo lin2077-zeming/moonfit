@@ -259,38 +259,71 @@ fn run_diff(argv : Array[String]) -> Int32 {
 
 ///|
 fn run_redact(argv : Array[String]) -> Int32 {
-  if argv.length() < 3 {
-    eprintln("moonfit: redact needs <in.fit> <out.fit> [trim] [dlat] [dlon]")
+  let pos : Array[String] = []
+  let mut strip_hr = false
+  let mut report_path : String? = None
+  let mut i = 1
+  while i < argv.length() {
+    let a = argv[i]
+    if a == "--strip-hr" {
+      strip_hr = true
+    } else if a == "--report" {
+      i = i + 1
+      if i < argv.length() {
+        report_path = Some(argv[i])
+      } else {
+        eprintln("moonfit: --report needs a path")
+        return 2
+      }
+    } else {
+      pos.push(a)
+    }
+    i = i + 1
+  }
+  if pos.length() < 2 {
+    eprintln(
+      "moonfit: redact needs <in.fit> <out.fit> [trim] [dlat] [dlon] [--strip-hr] [--report path]",
+    )
     return 2
   }
-  let trim = if argv.length() > 3 { to_int_def(argv[3], 0) } else { 0 }
-  let dlat = if argv.length() > 4 {
-    to_int_def(argv[4], 600000).to_int64()
+  let trim = if pos.length() > 2 { to_int_def(pos[2], 0) } else { 0 }
+  let dlat = if pos.length() > 3 {
+    to_int_def(pos[3], 600000).to_int64()
   } else {
     600000L
   }
-  let dlon = if argv.length() > 5 {
-    to_int_def(argv[5], -800000).to_int64()
+  let dlon = if pos.length() > 4 {
+    to_int_def(pos[4], -800000).to_int64()
   } else {
     -800000L
   }
-  let data = @fs.read_file_to_bytes(argv[1]) catch {
+  let data = @fs.read_file_to_bytes(pos[0]) catch {
     @fs.IOError(_) => {
-      eprintln("moonfit: cannot read \{argv[1]}")
+      eprintln("moonfit: cannot read \{pos[0]}")
       return 2
     }
   }
-  let out = @redact.redact(data, trim, dlat, dlon) catch {
+  let (out, report) = @redact.redact_ex(data, trim, dlat, dlon, strip_hr) catch {
     _ => {
-      eprintln("moonfit: cannot redact \{argv[1]}")
+      eprintln("moonfit: cannot redact \{pos[0]}")
       return 2
     }
   }
-  @fs.write_bytes_to_file(argv[2], out) catch {
+  @fs.write_bytes_to_file(pos[1], out) catch {
     @fs.IOError(_) => {
-      eprintln("moonfit: cannot write \{argv[2]}")
+      eprintln("moonfit: cannot write \{pos[1]}")
       return 2
     }
+  }
+  match report_path {
+    Some(rp) =>
+      @fs.write_string_to_file(rp, @redact.report_json(report)) catch {
+        @fs.IOError(_) => {
+          eprintln("moonfit: cannot write report \{rp}")
+          return 2
+        }
+      }
+    None => ()
   }
   0
 }

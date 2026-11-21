@@ -3,14 +3,33 @@ package "lin2077-zeming/moonfit/src/redact"
 
 import {
   "lin2077-zeming/moonfit/src/fit",
+  "moonbitlang/core/debug",
 }
 
 // Values
 pub fn redact(Bytes, Int32, Int64, Int64) -> Bytes raise @fit.FitError
 
+pub fn redact_ex(Bytes, Int32, Int64, Int64, Bool) -> (Bytes, RedactReport) raise @fit.FitError
+
+pub fn report_json(RedactReport) -> String
+
 // Errors
 
 // Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct RedactReport {
+  serial_zeroed : Int32
+  lat_shifted : Int32
+  lon_shifted : Int32
+  hr_stripped : Int32
+  trimmed_records : Int32
+  fields_changed : Int32
+  lat_delta : Int64
+  lon_delta : Int64
+}
+pub fn RedactReport::equal(Self, Self) -> Bool
+pub fn RedactReport::not_equal(Self, Self) -> Bool
+pub fn RedactReport::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

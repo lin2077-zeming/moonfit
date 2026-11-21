@@ -1,3 +1,4 @@
 import {
   "lin2077-zeming/moonfit/src/fit",
+  "moonbitlang/core/debug",
 }

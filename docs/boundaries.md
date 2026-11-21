@@ -30,7 +30,7 @@ repository from promising more than the code does.
 | Derived metrics (device + GPS distance, three-way time, pace, per-km splits, smoothing-window ascent, caller-defined HR zones) and Gate G4 vs an independent Karney reference | `scripts/check_g4.py` |
 | TCX decoding into the same canonical model (BOM + namespace tolerance, iGPSPORT/Huawei variants, non-standard Sport normalisation), cross-checked on all 14 corpus .tcx against an independent XML parse | `scripts/check_tcx.py` |
 | FIT vs TCX divergence report encoding laws L1/L6 and defect B1 as checkable facts, cross-checked on all 6 pairs against an independent reference (Gate G5) | `scripts/check_g5.py` |
-| Native FIT redaction (zero serial, exact semicircle coordinate shift, optional record trim) that reproduces the committed corpus byte-for-byte from raw exports and is idempotent + structure-preserving | `scripts/check_redact.py` |
+| Native FIT redaction (zero serial, exact semicircle coordinate shift, optional record trim, optional `--strip-hr`, machine-readable `--report`) that reproduces the committed corpus byte-for-byte from raw exports and is idempotent + structure-preserving | `scripts/check_redact.py` |
 | Robustness: typed errors for truncation / bad signature / bad header size / header-CRC / missing definition / unknown base type / overlong field, and a full single-byte mutation sweep rejected on all four backends (Gate G6) | `src/fit/fit_test.mbt` |
 | `moonfit verify` (total validity) and `moonfit info` (header + counts) | `scripts/check_g6.py` |
 | Exhaustive base-type round-trip (16 types x both endiannesses x representative values) and per-type invalid detection | `src/fit/basetype_exhaustive_test.mbt` |
