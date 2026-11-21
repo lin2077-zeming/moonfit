@@ -1,5 +1,6 @@
 import {
   "lin2077-zeming/moonfit/src/fit",
+  "lin2077-zeming/moonfit/src/json",
   "lin2077-zeming/moonfit/src/model",
   "lin2077-zeming/moonfit/src/metrics",
   "lin2077-zeming/moonfit/src/tcx",

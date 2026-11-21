@@ -327,34 +327,34 @@ pub fn to_json(m : Metrics) -> String {
       "{\"index\":" +
       s.index.to_string() +
       ",\"end_distance_m\":" +
-      s.end_distance_m.to_string() +
+      @json.json_double(s.end_distance_m) +
       ",\"time_s\":" +
       s.time_s.to_string() +
       "}",
     )
   }
   "{\"device_distance_m\":" +
-  m.device_distance_m.to_string() +
+  @json.json_double(m.device_distance_m) +
   ",\"gps_distance_m\":" +
-  m.gps_distance_m.to_string() +
+  @json.json_double(m.gps_distance_m) +
   ",\"elapsed_s\":" +
-  m.elapsed_s.to_string() +
+  @json.json_double(m.elapsed_s) +
   ",\"timer_s\":" +
-  m.timer_s.to_string() +
+  @json.json_double(m.timer_s) +
   ",\"moving_s\":" +
-  m.moving_s.to_string() +
+  @json.json_double(m.moving_s) +
   ",\"avg_speed_mps\":" +
-  m.avg_speed_mps.to_string() +
+  @json.json_double(m.avg_speed_mps) +
   ",\"gps_avg_speed_mps\":" +
-  m.gps_avg_speed_mps.to_string() +
+  @json.json_double(m.gps_avg_speed_mps) +
   ",\"avg_pace_min_per_km\":" +
-  m.avg_pace_min_per_km.to_string() +
+  @json.json_double(m.avg_pace_min_per_km) +
   ",\"device_ascent_m\":" +
-  m.device_ascent_m.to_string() +
+  @json.json_double(m.device_ascent_m) +
   ",\"device_descent_m\":" +
-  m.device_descent_m.to_string() +
+  @json.json_double(m.device_descent_m) +
   ",\"computed_ascent_m\":" +
-  m.computed_ascent_m.to_string() +
+  @json.json_double(m.computed_ascent_m) +
   ",\"hr_zones\":[" +
   zparts.join(",") +
   "]" +

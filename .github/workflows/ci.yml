@@ -94,6 +94,8 @@ jobs:
 
       - name: Gate G8 - per-field disposition coverage
         run: python3 scripts/check_g8.py
+      - name: JSON output safety gate
+        run: python3 scripts/check_json.py
 
       - name: Test native target
         run: moon test --target native --deny-warn

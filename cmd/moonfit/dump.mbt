@@ -5,20 +5,6 @@
 // Array / opaque fields are reported as a raw byte count, not decoded.
 
 ///|
-fn escape(s : String) -> String {
-  let mut out = ""
-  for c in s {
-    match c {
-      '"' => out = out + "\\\""
-      '\\' => out = out + "\\\\"
-      '\n' => out = out + "\\n"
-      '\r' => out = out + "\\r"
-      '\t' => out = out + "\\t"
-      _ => out = out + c.to_string()
-    }
-  }
-  out
-}
 
 ///|
 fn value_json(v : @fit.BaseValue, invalid : Bool) -> String {
@@ -38,7 +24,7 @@ fn value_json(v : @fit.BaseValue, invalid : Bool) -> String {
     @fit.Signed(x) => if invalid { "null" } else { x.to_string() }
     @fit.Unsigned(x) => if invalid { "null" } else { x.to_string() }
     @fit.Real(d) => if invalid { "null" } else { d.to_string() }
-    @fit.Text(t) => if invalid { "null" } else { "\"" + escape(t) + "\"" }
+    @fit.Text(t) => if invalid { "null" } else { @json.json_string(t) }
     @fit.Raw(b) => if invalid { "null" } else { "\"raw:\{b.length()}\"" }
   }
 }
@@ -208,20 +194,20 @@ fn run_tcx(argv : Array[String]) -> Int32 {
   let avghr = opt_i32_json(a.avg_hr)
   let maxhr = opt_i32_json(a.max_hr)
   println(
-    "{\"sport\":\"" +
-    a.sport +
-    "\",\"sport_raw\":\"" +
-    t.sport_raw +
-    "\",\"sport_nonstandard\":" +
+    "{\"sport\":" +
+    @json.json_string(a.sport) +
+    ",\"sport_raw\":" +
+    @json.json_string(t.sport_raw) +
+    ",\"sport_nonstandard\":" +
     (if t.sport_nonstandard { "true" } else { "false" }) +
     ",\"n_points\":" +
     a.points.length().to_string() +
     ",\"n_laps\":" +
     a.laps.length().to_string() +
     ",\"device_distance_m\":" +
-    a.device_distance_m.to_string() +
+    @json.json_double(a.device_distance_m) +
     ",\"timer_s\":" +
-    a.timer_s.to_string() +
+    @json.json_double(a.timer_s) +
     ",\"avg_hr\":" +
     avghr +
     ",\"max_hr\":" +

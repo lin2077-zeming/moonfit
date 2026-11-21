@@ -24,12 +24,15 @@ pub(all) struct Metrics {
   timer_s : Double
   moving_s : Double
   avg_speed_mps : Double
+  gps_avg_speed_mps : Double
   avg_pace_min_per_km : Double
   device_ascent_m : Double
   device_descent_m : Double
   computed_ascent_m : Double
   hr_zones : Array[ZoneTime]
   splits : Array[Split]
+  split_basis : String
+  splits_truncated : Bool
 }
 pub fn Metrics::equal(Self, Self) -> Bool
 pub fn Metrics::not_equal(Self, Self) -> Bool

@@ -129,23 +129,23 @@ pub fn to_json(d : Divergence) -> String {
   ",\"points_equal\":" +
   b(d.points_equal) +
   ",\"fit_timer_s\":" +
-  d.fit_timer_s.to_string() +
+  @json.json_double(d.fit_timer_s) +
   ",\"tcx_timer_s\":" +
-  d.tcx_timer_s.to_string() +
+  @json.json_double(d.tcx_timer_s) +
   ",\"timer_equal\":" +
   b(d.timer_equal) +
   ",\"fit_elapsed_s\":" +
-  d.fit_elapsed_s.to_string() +
+  @json.json_double(d.fit_elapsed_s) +
   ",\"tcx_elapsed_s\":" +
-  d.tcx_elapsed_s.to_string() +
+  @json.json_double(d.tcx_elapsed_s) +
   ",\"pause_lost_s\":" +
-  d.pause_lost_s.to_string() +
+  @json.json_double(d.pause_lost_s) +
   ",\"fit_distance_m\":" +
-  d.fit_distance_m.to_string() +
+  @json.json_double(d.fit_distance_m) +
   ",\"tcx_distance_m\":" +
-  d.tcx_distance_m.to_string() +
+  @json.json_double(d.tcx_distance_m) +
   ",\"distance_delta_m\":" +
-  d.distance_delta_m.to_string() +
+  @json.json_double(d.distance_delta_m) +
   ",\"fit_alt\":" +
   d.fit_alt.to_string() +
   ",\"tcx_alt\":" +
