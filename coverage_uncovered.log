@@ -1,0 +1,1955 @@
+Total: 273 uncovered line(s) in 16 file(s)
+
+16 uncovered line(s) in src\tcx\tcx.mbt:
+
+35	fn local_name(q : String) -> String {
+36	  let mut i = 0
+37	  let mut start = 0
+38	  for c in q {
+39	    if c == ':' {
+40	      start = i + 1	<-- UNCOVERED
+41	    }
+42	    i = i + 1
+43	  }
+44	  let mut out = ""
+45	  let mut j = 0
+46	  for c in q {
+47	    if j >= start {
+48	      out = out + c.to_string()
+49	    }
+50	    j = j + 1
+51	  }
+52	  out
+53	}
+  	…
+
+56	fn to_int(s : String) -> Int64 {
+57	  @string.parse_int64(s) catch {
+58	    _ => 0L	<-- UNCOVERED
+59	  }
+60	}
+  	…
+
+63	fn to_double(s : String) -> Double {
+64	  @string.parse_double(s) catch {
+65	    _ => 0.0	<-- UNCOVERED
+66	  }
+67	}
+  	…
+
+ 82	fn parse_iso(s : String) -> Int64 {
+ 83	  if s.length() < 19 {
+ 84	    return 0L	<-- UNCOVERED
+ 85	  }
+ 86	  let sub = fn(a : Int32, b : Int32) -> String {
+ 87	    let mut out = ""
+ 88	    let mut i = 0
+ 89	    for c in s {
+ 90	      if i >= a && i < b {
+ 91	        out = out + c.to_string()
+ 92	      }
+ 93	      i = i + 1
+ 94	    }
+ 95	    out
+ 96	  }
+ 97	  let y = to_int(sub(0, 4))
+ 98	  let mo = to_int(sub(5, 7))
+ 99	  let d = to_int(sub(8, 10))
+100	  let h = to_int(sub(11, 13))
+101	  let mi = to_int(sub(14, 16))
+102	  let se = to_int(sub(17, 19))
+103	  let unix = days_from_civil(y, mo, d) * 86400L + h * 3600L + mi * 60L + se
+104	  unix - 631065600L
+105	}
+   	…
+
+108	fn norm_sport(raw : String) -> (String, Bool) {
+109	  match raw {
+110	    "Biking" => ("cycling", false)
+111	    "Running" => ("running", false)	<-- UNCOVERED
+112	    "Other" => ("other", false)
+113	    "户外跑步" => ("running", true)
+114	    "户外骑行" => ("cycling", true)	<-- UNCOVERED
+115	    _ => ("other", true)
+116	  }
+117	}
+   	…
+
+120	pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
+121	  let view = if data.length() >= 3 &&
+122	    data.at(0).to_int() == 0xEF &&
+123	    data.at(1).to_int() == 0xBB &&
+124	    data.at(2).to_int() == 0xBF {
+125	    data.clamped_view(start=3)
+126	  } else {
+127	    data.clamped_view()
+128	  }
+129	  let text = @utf8.decode_lossy(view)
+130	  let events = @xml.Reader::from_string(text).read_events_until_eof() catch {
+131	    e => raise TcxError::Malformed(e.to_string())	<-- UNCOVERED
+132	  }
+133	  let stack : Array[String] = []
+134	  let mut sport_raw = ""
+135	  let points : Array[@model.TrackPoint] = []
+136	  let laps : Array[@model.Lap] = []
+137	  let mut lap_start = 0L
+138	  let mut lap_time = 0.0
+139	  let mut lap_dist = 0.0
+140	  let mut lap_avghr : Int32? = None
+141	  let mut lap_maxhr : Int32? = None
+142	  let mut tp_time = 0L
+143	  let mut tp_lat : Double? = None
+144	  let mut tp_lon : Double? = None
+145	  let mut tp_alt : Double? = None
+146	  let mut tp_dist : Double? = None
+147	  let mut tp_speed : Double? = None
+148	  let mut tp_hr : Int32? = None
+149	  let mut tp_cad : Int32? = None
+150	  let mut in_tp = false
+151	  for e in events {
+152	    match e.kind {
+153	      @xml.Start(el) => {
+154	        let ln = local_name(el.name)
+155	        stack.push(ln)
+156	        match ln {
+157	          "Activity" =>
+158	            sport_raw = match el.get("Sport") {
+159	              Some(v) => v
+160	              None => ""	<-- UNCOVERED
+161	            }
+162	          "Lap" => {
+163	            lap_start = parse_iso(
+164	              match el.get("StartTime") {
+165	                Some(v) => v
+166	                None => ""	<-- UNCOVERED
+167	              },
+168	            )
+169	            lap_time = 0.0
+170	            lap_dist = 0.0
+171	            lap_avghr = None
+172	            lap_maxhr = None
+173	          }
+174	          "Trackpoint" => {
+175	            in_tp = true
+176	            tp_time = 0L
+177	            tp_lat = None
+178	            tp_lon = None
+179	            tp_alt = None
+180	            tp_dist = None
+181	            tp_speed = None
+182	            tp_hr = None
+183	            tp_cad = None
+184	          }
+185	          _ => ()
+186	        }
+187	      }
+188	      @xml.End(name) => {
+189	        let ln = local_name(name)
+190	        match ln {
+191	          "Trackpoint" => {
+192	            points.push({
+193	              timestamp: tp_time,
+194	              lat: tp_lat,
+195	              lon: tp_lon,
+196	              altitude_m: tp_alt,
+197	              distance_m: tp_dist,
+198	              speed_mps: tp_speed,
+199	              heart_rate: tp_hr,
+200	              cadence: tp_cad,
+201	              temperature: None,
+202	            })
+203	            in_tp = false
+204	          }
+205	          "Lap" =>
+206	            laps.push({
+207	              start_time: lap_start,
+208	              elapsed_s: lap_time,
+209	              timer_s: lap_time,
+210	              distance_m: lap_dist,
+211	              ascent_m: 0.0,
+212	              descent_m: 0.0,
+213	              avg_hr: lap_avghr,
+214	              max_hr: lap_maxhr,
+215	            })
+216	          _ => ()
+217	        }
+218	        let _ = stack.pop()
+219	      }
+220	      @xml.Text(t) => {
+221	        let txt = t.trim().to_owned()
+222	        if txt != "" && stack.length() > 0 {
+223	          let top = stack[stack.length() - 1]
+224	          let parent = if stack.length() > 1 {
+225	            stack[stack.length() - 2]
+226	          } else {
+227	            ""	<-- UNCOVERED
+228	          }
+229	          if in_tp {
+230	            match top {
+231	              "Time" => tp_time = parse_iso(txt)
+232	              "LatitudeDegrees" => tp_lat = Some(to_double(txt))
+233	              "LongitudeDegrees" => tp_lon = Some(to_double(txt))
+234	              "AltitudeMeters" => tp_alt = Some(to_double(txt))
+235	              "DistanceMeters" => tp_dist = Some(to_double(txt))
+236	              "Cadence" => tp_cad = Some(to_int(txt).to_int())	<-- UNCOVERED
+237	              "Speed" => tp_speed = Some(to_double(txt))
+238	              "Value" =>
+239	                if parent == "HeartRateBpm" {
+240	                  tp_hr = Some(to_int(txt).to_int())
+241	                }
+242	              _ => ()	<-- UNCOVERED
+243	            }
+244	          } else {
+245	            match top {
+246	              "TotalTimeSeconds" => lap_time = to_double(txt)
+247	              "DistanceMeters" => lap_dist = to_double(txt)
+248	              "Value" =>
+249	                if parent == "AverageHeartRateBpm" {
+250	                  lap_avghr = Some(to_int(txt).to_int())
+251	                } else if parent == "MaximumHeartRateBpm" {
+252	                  lap_maxhr = Some(to_int(txt).to_int())
+253	                }
+254	              _ => ()
+255	            }
+256	          }
+257	        }
+258	      }
+259	      _ => ()
+260	    }
+261	  }
+262	  let (sport, nonstandard) = norm_sport(sport_raw)
+263	  let mut total_dist = 0.0
+264	  let mut total_time = 0.0
+265	  for l in laps {
+266	    total_dist = total_dist + l.distance_m
+267	    total_time = total_time + l.timer_s
+268	  }
+269	  let start = if laps.length() > 0 {
+270	    laps[0].start_time
+271	  } else if points.length() > 0 {	<-- UNCOVERED
+272	    points[0].timestamp
+273	  } else {
+274	    0L	<-- UNCOVERED
+275	  }
+276	  {
+277	    activity: {
+278	      sport,
+279	      sub_sport: "generic",
+280	      start_time: start,
+281	      points,
+282	      laps,
+283	      device_distance_m: total_dist,
+284	      elapsed_s: total_time,
+285	      timer_s: total_time,
+286	      moving_s: total_time,
+287	      device_ascent_m: 0.0,
+288	      device_descent_m: 0.0,
+289	      avg_hr: if laps.length() > 0 {
+290	        laps[0].avg_hr
+291	      } else {
+292	        None	<-- UNCOVERED
+293	      },
+294	      max_hr: if laps.length() > 0 {
+295	        laps[0].max_hr
+296	      } else {
+297	        None	<-- UNCOVERED
+298	      },
+299	    },
+300	    sport_raw,
+301	    sport_nonstandard: nonstandard,
+302	  }
+303	}
+   	…
+
+24 uncovered line(s) in src\diff\diff.mbt:
+
+65	fn first_ts(a : @model.Activity) -> Int64 {
+66	  if a.points.length() > 0 {
+67	    a.points[0].timestamp
+68	  } else {
+69	    0L	<-- UNCOVERED
+70	  }
+71	}
+  	…
+
+74	fn last_ts(a : @model.Activity) -> Int64 {
+75	  if a.points.length() > 0 {
+76	    a.points[a.points.length() - 1].timestamp
+77	  } else {
+78	    0L	<-- UNCOVERED
+79	  }
+80	}
+  	…
+
+115	fn b(v : Bool) -> String {
+116	  if v {	<-- UNCOVERED
+117	    "true"
+118	  } else {
+119	    "false"	<-- UNCOVERED
+120	  }
+121	}
+   	…
+
+124	pub fn to_json(d : Divergence) -> String {
+125	  "{\"fit_points\":" +	<-- UNCOVERED
+126	  d.fit_points.to_string() +
+127	  ",\"tcx_points\":" +
+128	  d.tcx_points.to_string() +	<-- UNCOVERED
+129	  ",\"points_equal\":" +
+130	  b(d.points_equal) +	<-- UNCOVERED
+131	  ",\"fit_timer_s\":" +
+132	  d.fit_timer_s.to_string() +	<-- UNCOVERED
+133	  ",\"tcx_timer_s\":" +
+134	  d.tcx_timer_s.to_string() +	<-- UNCOVERED
+135	  ",\"timer_equal\":" +
+136	  b(d.timer_equal) +	<-- UNCOVERED
+137	  ",\"fit_elapsed_s\":" +
+138	  d.fit_elapsed_s.to_string() +	<-- UNCOVERED
+139	  ",\"tcx_elapsed_s\":" +
+140	  d.tcx_elapsed_s.to_string() +	<-- UNCOVERED
+141	  ",\"pause_lost_s\":" +
+142	  d.pause_lost_s.to_string() +	<-- UNCOVERED
+143	  ",\"fit_distance_m\":" +
+144	  d.fit_distance_m.to_string() +	<-- UNCOVERED
+145	  ",\"tcx_distance_m\":" +
+146	  d.tcx_distance_m.to_string() +	<-- UNCOVERED
+147	  ",\"distance_delta_m\":" +
+148	  d.distance_delta_m.to_string() +	<-- UNCOVERED
+149	  ",\"fit_alt\":" +
+150	  d.fit_alt.to_string() +	<-- UNCOVERED
+151	  ",\"tcx_alt\":" +
+152	  d.tcx_alt.to_string() +	<-- UNCOVERED
+153	  ",\"fit_hr\":" +
+154	  d.fit_hr.to_string() +	<-- UNCOVERED
+155	  ",\"tcx_hr\":" +
+156	  d.tcx_hr.to_string() +	<-- UNCOVERED
+157	  ",\"sport_fit\":\"" +
+158	  d.sport_fit +
+159	  "\"" +
+160	  ",\"sport_tcx\":\"" +
+161	  d.sport_tcx +
+162	  "\"" +
+163	  ",\"sport_equal\":" +
+164	  b(d.sport_equal) +	<-- UNCOVERED
+165	  ",\"tcx_sport_nonstandard\":" +
+166	  b(d.tcx_sport_nonstandard) +	<-- UNCOVERED
+167	  ",\"first_ts_equal\":" +
+168	  b(d.first_ts_equal) +	<-- UNCOVERED
+169	  ",\"last_ts_equal\":" +
+170	  b(d.last_ts_equal) +	<-- UNCOVERED
+171	  "}"
+172	}
+   	…
+
+3 uncovered line(s) in src\fit\encode.mbt:
+
+42	pub fn encode(h : FitHeader, msgs : Array[Message]) -> Bytes {
+43	  let body : Array[Byte] = []
+44	  for m in msgs {
+45	    match m {
+46	      Def(d) => {
+47	        let hb = 0x40 | (if d.has_dev { 0x20 } else { 0 }) | d.local_id
+48	        body.push(b(hb))
+49	        body.push(b(0))
+50	        body.push(
+51	          b(
+52	            match d.endian {
+53	              Big => 1	<-- UNCOVERED
+54	              Little => 0
+55	            },
+56	          ),
+57	        )
+58	        push_u16(body, d.global, d.endian)
+59	        body.push(b(d.fields.length()))
+60	        for f in d.fields {
+61	          push_field_def(body, f)
+62	        }
+63	        if d.has_dev {
+64	          body.push(b(d.dev_fields.length()))	<-- UNCOVERED
+65	          for f in d.dev_fields {
+66	            push_field_def(body, f)	<-- UNCOVERED
+67	          }
+68	        }
+69	      }
+70	      Data(dm) => {
+71	        let hb = match dm.ts_offset {
+72	          Some(o) => 0x80 | (dm.local_id << 5) | o
+73	          None => dm.local_id
+74	        }
+75	        body.push(b(hb))
+76	        for f in dm.fields {
+77	          push_bytes(body, f.raw)
+78	        }
+79	        push_bytes(body, dm.dev_data)
+80	      }
+81	    }
+82	  }
+83	  let hdr : Array[Byte] = []
+84	  hdr.push(b(h.header_size))
+85	  hdr.push(b(h.protocol))
+86	  push_u16(hdr, h.profile, Little)
+87	  push_u32(hdr, Int64::from_int(body.length()), Little)
+88	  push_bytes(hdr, Bytes::from_array([b(0x2E), b(0x46), b(0x49), b(0x54)]))
+89	  if h.header_size == 14 {
+90	    let hc = crc16(Bytes::from_array(hdr).clamped_view())
+91	    push_u16(hdr, hc, Little)
+92	  }
+93	  let full = Bytes::add(Bytes::from_array(hdr), Bytes::from_array(body))
+94	  let fc = crc16(full.clamped_view())
+95	  Bytes::add(
+96	    full,
+97	    write_uint(Int64::from_int(fc).reinterpret_as_uint64(), 2, Little),
+98	  )
+99	}
+  	…
+
+3 uncovered line(s) in src\fit\header.mbt:
+
+26	pub fn parse_header(data : Bytes) -> FitHeader raise FitError {
+27	  let len = data.length()
+28	  if len < 12 {
+29	    raise FitError::Truncated("a FIT header needs at least 12 bytes")
+30	  }
+31	  let header_size = data.at(0).to_int()
+32	  if header_size != 12 && header_size != 14 {
+33	    raise FitError::BadHeaderSize(header_size)
+34	  }
+35	  if len < header_size {
+36	    raise FitError::Truncated("declared header size exceeds file length")	<-- UNCOVERED
+37	  }
+38	  if !(data.at(8).to_int() == 0x2E &&
+39	    data.at(9).to_int() == 0x46 &&
+40	    data.at(10).to_int() == 0x49 &&
+41	    data.at(11).to_int() == 0x54) {
+42	    raise FitError::BadSignature
+43	  }
+44	  let protocol = data.at(1).to_int()
+45	  let profile = read_uint(data, 2, 2, Little).reinterpret_as_int64().to_int()
+46	  let data_size = read_uint(data, 4, 4, Little).reinterpret_as_int64()
+47	  let has_header_crc = header_size == 14
+48	  if has_header_crc {
+49	    let stored = read_uint(data, 12, 2, Little).reinterpret_as_int64().to_int()
+50	    let computed = crc16(data.clamped_view(end=12))
+51	    if stored != computed {
+52	      raise FitError::HeaderCrcMismatch(stored, computed)
+53	    }
+54	  }
+55	  let expected = Int64::from_int(header_size) + data_size + 2L
+56	  if expected != Int64::from_int(len) {
+57	    raise FitError::FileSizeMismatch(expected, Int64::from_int(len))	<-- UNCOVERED
+58	  }
+59	  { header_size, protocol, profile, data_size, has_header_crc, }
+60	}
+  	…
+
+63	pub fn file_crc_ok(data : Bytes) -> Bool {
+64	  let len = data.length()
+65	  if len < 2 {
+66	    return false	<-- UNCOVERED
+67	  }
+68	  // Direct byte reads: no error path, so this stays a total predicate.
+69	  let stored = data.at(len - 2).to_int() | (data.at(len - 1).to_int() << 8)
+70	  let computed = crc16(data.clamped_view(end=len - 2))
+71	  stored == computed
+72	}
+  	…
+
+5 uncovered line(s) in src\units\ctor.mbt:
+
+13	pub fn semicircle_value(x : Semicircle) -> Int64 {
+14	  x.value	<-- UNCOVERED
+15	}
+  	…
+
+43	pub fn centimetre_value(x : Centimetre) -> Int64 {
+44	  x.value	<-- UNCOVERED
+45	}
+  	…
+
+73	pub fn millimetre_per_second_value(x : MillimetrePerSecond) -> Int64 {
+74	  x.value	<-- UNCOVERED
+75	}
+  	…
+
+83	pub fn millisecond_value(x : Millisecond) -> Int64 {
+84	  x.value	<-- UNCOVERED
+85	}
+  	…
+
+133	pub fn centi_percent_value(x : CentiPercent) -> Int64 {
+134	  x.value	<-- UNCOVERED
+135	}
+   	…
+
+3 uncovered line(s) in src\units\time.mbt:
+
+56	fn pad4(value : Int64) -> String {
+57	  if value < 10L {
+58	    "000\{value}"	<-- UNCOVERED
+59	  } else if value < 100L {
+60	    "00\{value}"	<-- UNCOVERED
+61	  } else if value < 1000L {
+62	    "0\{value}"	<-- UNCOVERED
+63	  } else {
+64	    "\{value}"
+65	  }
+66	}
+  	…
+
+15 uncovered line(s) in src\fit\message.mbt:
+
+106	fn read_field(
+107	  base : BaseType,
+108	  size : Int32,
+109	  data : Bytes,
+110	  off : Int32,
+111	  endian : Endian,
+112	) -> BaseValue raise FitError {
+113	  if base != Str && size != BaseType::size(base) {
+114	    if off + size > data.length() {
+115	      raise FitError::Truncated("array field exceeds file length")
+116	    }
+117	    let elem = BaseType::size(base)
+118	    if size % elem != 0 {
+119	      raise FitError::Truncated("array size is not a multiple of the element")	<-- UNCOVERED
+120	    }
+121	    let n = size / elem
+122	    let elems : Array[BaseValue] = []
+123	    let mut k = 0
+124	    while k < n {
+125	      elems.push(read_base(base, data, off + k * elem, endian))
+126	      k = k + 1
+127	    }
+128	    return Array(elems)
+129	  }
+130	  match base {
+131	    Str => {	<-- UNCOVERED
+132	      let out : Array[Byte] = []
+133	      let mut i = 0
+134	      while i < size {
+135	        let b = byte_at(data, off + i)	<-- UNCOVERED
+136	        if b == 0 {
+137	          break	<-- UNCOVERED
+138	        }
+139	        out.push(b.to_int64().to_byte())	<-- UNCOVERED
+140	        i = i + 1
+141	      }
+142	      Text(@utf8.decode_lossy(Bytes::from_array(out).clamped_view()))	<-- UNCOVERED
+143	    }
+144	    _ => read_base(base, data, off, endian)
+145	  }
+146	}
+   	…
+
+149	fn read_data(
+150	  data : Bytes,
+151	  start : Int32,
+152	  d : Definition,
+153	) -> (Array[FieldValue], Bytes, Int32) raise FitError {
+154	  let mut cur = start
+155	  let fields : Array[FieldValue] = []
+156	  for f in d.fields {
+157	    let value = read_field(f.base, f.size, data, cur, d.endian)
+158	    let invalid = is_invalid(f.base, data, cur, d.endian)
+159	    let raw = data.exact_view(start=cur, end=cur + f.size).to_owned()
+160	    fields.push({ def_num: f.def_num, value, invalid, raw, })
+161	    cur = cur + f.size
+162	  }
+163	  let mut dev_total = 0
+164	  for f in d.dev_fields {
+165	    dev_total = dev_total + f.size	<-- UNCOVERED
+166	  }
+167	  if cur + dev_total > data.length() {
+168	    raise FitError::Truncated("developer data exceeds file length")	<-- UNCOVERED
+169	  }
+170	  let dev = if dev_total > 0 {
+171	    data.exact_view(start=cur, end=cur + dev_total).to_owned()	<-- UNCOVERED
+172	  } else {
+173	    Bytes::from_array([])
+174	  }
+175	  cur = cur + dev_total
+176	  (fields, dev, cur)
+177	}
+   	…
+
+180	fn field_timestamp(fields : Array[FieldValue]) -> Int64? {
+181	  for f in fields {
+182	    if f.def_num == 253 && !f.invalid {
+183	      match f.value {
+184	        Signed(v) => return Some(v)	<-- UNCOVERED
+185	        Unsigned(v) => return Some(v.reinterpret_as_int64())
+186	        _ => ()	<-- UNCOVERED
+187	      }
+188	    }
+189	  }
+190	  None
+191	}
+   	…
+
+197	fn reconstruct_ts(last : Int64?, offset : Int32) -> Int64? {
+198	  match last {
+199	    None => None	<-- UNCOVERED
+200	    Some(l) => {
+201	      let off = Int64::from_int(offset)
+202	      let mut ts = (l & -32L) + off
+203	      if off < (l & 31L) {
+204	        ts = ts + 0x20L
+205	      }
+206	      Some(ts)
+207	    }
+208	  }
+209	}
+   	…
+
+212	pub fn parse_messages(data : Bytes) -> Array[Message] raise FitError {
+213	  let h = parse_header(data)
+214	  let end = h.header_size + h.data_size.to_int()
+215	  let defs : Array[Definition?] = Array::make(16, None)
+216	  let out : Array[Message] = []
+217	  let mut last_ts : Int64? = None
+218	  let mut off = h.header_size
+219	  while off < end {
+220	    let hb = byte_at(data, off)
+221	    if (hb & 0x80) != 0 {
+222	      let local_id = (hb >> 5) & 0x3
+223	      let toff = hb & 0x1F
+224	      let d = require_def(defs, local_id)
+225	      let (fields, dev, next) = read_data(data, off + 1, d)
+226	      let ts = reconstruct_ts(last_ts, toff)
+227	      last_ts = ts
+228	      out.push(
+229	        Data({
+230	          local_id,
+231	          global: d.global,
+232	          fields,
+233	          dev_data: dev,
+234	          ts_offset: Some(toff),
+235	          timestamp: ts,
+236	        }),
+237	      )
+238	      off = next
+239	    } else if (hb & 0x40) != 0 {
+240	      let local_id = hb & 0x0F
+241	      let has_dev = (hb & 0x20) != 0
+242	      let arch = byte_at(data, off + 2)
+243	      let endian = endian_from_byte(arch)
+244	      let global = read_uint(data, off + 3, 2, endian)
+245	        .reinterpret_as_int64()
+246	        .to_int()
+247	      let count = byte_at(data, off + 5)
+248	      let mut cur = off + 6
+249	      let fields : Array[FieldDef] = []
+250	      let mut i = 0
+251	      while i < count {
+252	        let dn = byte_at(data, cur)
+253	        let sz = byte_at(data, cur + 1)
+254	        let bc = byte_at(data, cur + 2)
+255	        fields.push({ def_num: dn, size: sz, base: base_type(bc), })
+256	        cur = cur + 3
+257	        i = i + 1
+258	      }
+259	      let dev_fields : Array[FieldDef] = []
+260	      if has_dev {
+261	        let dc = byte_at(data, cur)	<-- UNCOVERED
+262	        cur = cur + 1
+263	        let mut j = 0
+264	        while j < dc {
+265	          let dn = byte_at(data, cur)	<-- UNCOVERED
+266	          let sz = byte_at(data, cur + 1)
+267	          let bc = byte_at(data, cur + 2)
+268	          dev_fields.push({ def_num: dn, size: sz, base: base_type(bc), })
+269	          cur = cur + 3
+270	          j = j + 1
+271	        }
+272	      }
+273	      let d = { local_id, global, endian, has_dev, fields, dev_fields, }
+274	      defs[local_id] = Some(d)
+275	      out.push(Def(d))
+276	      off = cur
+277	    } else {
+278	      let local_id = hb & 0x0F
+279	      let d = require_def(defs, local_id)
+280	      let (fields, dev, next) = read_data(data, off + 1, d)
+281	      let ts = field_timestamp(fields)
+282	      if ts != None {
+283	        last_ts = ts
+284	      }
+285	      out.push(
+286	        Data({
+287	          local_id,
+288	          global: d.global,
+289	          fields,
+290	          dev_data: dev,
+291	          ts_offset: None,
+292	          timestamp: ts,
+293	        }),
+294	      )
+295	      off = next
+296	    }
+297	  }
+298	  if off != end {
+299	    raise FitError::Truncated("record stream did not consume the data section")	<-- UNCOVERED
+300	  }
+301	  out
+302	}
+   	…
+
+38 uncovered line(s) in src\model\model.mbt:
+
+72	fn fv(m : @fit.DataMessage, def : Int32) -> @fit.FieldValue? {
+73	  for f in m.fields {	<-- UNCOVERED
+74	    if f.def_num == def {
+75	      return Some(f)
+76	    }
+77	  }
+78	  None
+79	}
+  	…
+
+82	fn int_opt(m : @fit.DataMessage, def : Int32) -> Int64? {
+83	  match fv(m, def) {	<-- UNCOVERED
+84	    Some(f) =>
+85	      if f.invalid {	<-- UNCOVERED
+86	        None
+87	      } else {
+88	        match f.value {	<-- UNCOVERED
+89	          @fit.Signed(v) => Some(v)
+90	          @fit.Unsigned(v) => Some(v.reinterpret_as_int64())
+91	          _ => None
+92	        }
+93	      }
+94	    None => None	<-- UNCOVERED
+95	  }
+96	}
+  	…
+
+ 99	fn i32_opt(m : @fit.DataMessage, def : Int32) -> Int32? {
+100	  match int_opt(m, def) {	<-- UNCOVERED
+101	    Some(v) => Some(v.to_int())
+102	    None => None
+103	  }
+104	}
+   	…
+
+107	fn degrees_opt(m : @fit.DataMessage, def : Int32) -> Double? {
+108	  match int_opt(m, def) {	<-- UNCOVERED
+109	    Some(v) =>
+110	      Some(	<-- UNCOVERED
+111	        @units.degrees_value(@units.degrees_of_semicircle(@units.semicircle(v))),
+112	      )
+113	    None => None	<-- UNCOVERED
+114	  }
+115	}
+   	…
+
+118	fn altitude_opt(m : @fit.DataMessage, def : Int32) -> Double? {
+119	  match int_opt(m, def) {	<-- UNCOVERED
+120	    Some(v) =>
+121	      Some(	<-- UNCOVERED
+122	        @units.metre_value(
+123	          @units.metre_of_decimetre(
+124	            @units.decimetre_of_altitude_raw(@units.altitude_raw(v)),
+125	          ),
+126	        ),
+127	      )
+128	    None => None	<-- UNCOVERED
+129	  }
+130	}
+   	…
+
+133	fn metres_opt(m : @fit.DataMessage, def : Int32) -> Double? {
+134	  match int_opt(m, def) {	<-- UNCOVERED
+135	    Some(v) =>
+136	      Some(@units.metre_value(@units.metre_of_centimetre(@units.centimetre(v))))	<-- UNCOVERED
+137	    None => None
+138	  }
+139	}
+   	…
+
+142	fn speed_opt(m : @fit.DataMessage, def : Int32) -> Double? {
+143	  match int_opt(m, def) {	<-- UNCOVERED
+144	    Some(v) =>
+145	      Some(	<-- UNCOVERED
+146	        @units.metre_per_second_value(
+147	          @units.metre_per_second_of_millimetre_per_second(
+148	            @units.millimetre_per_second(v),
+149	          ),
+150	        ),
+151	      )
+152	    None => None	<-- UNCOVERED
+153	  }
+154	}
+   	…
+
+157	fn seconds(m : @fit.DataMessage, def : Int32) -> Double {
+158	  match int_opt(m, def) {	<-- UNCOVERED
+159	    Some(v) =>
+160	      @units.second_value(@units.second_of_millisecond(@units.millisecond(v)))	<-- UNCOVERED
+161	    None => 0.0
+162	  }
+163	}
+   	…
+
+166	fn sport_name(code : Int64) -> String {
+167	  match code {	<-- UNCOVERED
+168	    0L => "generic"
+169	    1L => "running"
+170	    2L => "cycling"
+171	    5L => "swimming"
+172	    11L => "walking"
+173	    17L => "hiking"
+174	    _ => "sport(\{code})"
+175	  }
+176	}
+   	…
+
+179	fn sub_sport_name(code : Int64) -> String {
+180	  match code {	<-- UNCOVERED
+181	    0L => "generic"
+182	    1L => "treadmill"
+183	    6L => "indoor_cycling"
+184	    7L => "road"
+185	    8L => "mountain"
+186	    11L => "trail"
+187	    _ => "sub_sport(\{code})"
+188	  }
+189	}
+   	…
+
+192	fn track_point(m : @fit.DataMessage) -> TrackPoint {
+193	  {	<-- UNCOVERED
+194	    timestamp: match int_opt(m, 253) {
+195	      Some(v) => v
+196	      None => 0L
+197	    },
+198	    lat: degrees_opt(m, 0),	<-- UNCOVERED
+199	    lon: degrees_opt(m, 1),
+200	    altitude_m: altitude_opt(m, 2),
+201	    distance_m: metres_opt(m, 5),
+202	    speed_mps: speed_opt(m, 6),
+203	    heart_rate: i32_opt(m, 3),
+204	    cadence: i32_opt(m, 4),
+205	    temperature: i32_opt(m, 13),
+206	  }
+207	}
+   	…
+
+210	fn lap(m : @fit.DataMessage) -> Lap {
+211	  {	<-- UNCOVERED
+212	    start_time: match int_opt(m, 2) {
+213	      Some(v) => v
+214	      None => 0L
+215	    },
+216	    elapsed_s: seconds(m, 7),	<-- UNCOVERED
+217	    timer_s: seconds(m, 8),
+218	    distance_m: match metres_opt(m, 9) {
+219	      Some(v) => v
+220	      None => 0.0
+221	    },
+222	    ascent_m: match int_opt(m, 21) {	<-- UNCOVERED
+223	      Some(v) => v.to_double()
+224	      None => 0.0
+225	    },
+226	    descent_m: match int_opt(m, 22) {	<-- UNCOVERED
+227	      Some(v) => v.to_double()
+228	      None => 0.0
+229	    },
+230	    avg_hr: i32_opt(m, 15),	<-- UNCOVERED
+231	    max_hr: i32_opt(m, 16),
+232	  }
+233	}
+   	…
+
+236	pub fn from_fit(msgs : Array[@fit.Message]) -> Activity raise @fit.FitError {
+237	  let data = @fit.data_messages(msgs)	<-- UNCOVERED
+238	  let mut session : @fit.DataMessage? = None
+239	  let points : Array[TrackPoint] = []
+240	  let laps : Array[Lap] = []
+241	  for m in data {
+242	    match m.global {	<-- UNCOVERED
+243	      18 => if session == None { session = Some(m) }
+244	      20 => points.push(track_point(m))
+245	      19 => laps.push(lap(m))
+246	      _ => ()
+247	    }
+248	  }
+249	  let s = match session {	<-- UNCOVERED
+250	    Some(v) => v
+251	    None => raise @fit.FitError::Truncated("activity has no session message")
+252	  }
+253	  {
+254	    sport: sport_name(	<-- UNCOVERED
+255	      match int_opt(s, 5) {
+256	        Some(v) => v
+257	        None => 0L
+258	      },
+259	    ),
+260	    sub_sport: sub_sport_name(	<-- UNCOVERED
+261	      match int_opt(s, 6) {
+262	        Some(v) => v
+263	        None => 0L
+264	      },
+265	    ),
+266	    start_time: match int_opt(s, 2) {	<-- UNCOVERED
+267	      Some(v) => v
+268	      None => 0L
+269	    },
+270	    points,
+271	    laps,
+272	    device_distance_m: match metres_opt(s, 9) {	<-- UNCOVERED
+273	      Some(v) => v
+274	      None => 0.0
+275	    },
+276	    elapsed_s: seconds(s, 7),	<-- UNCOVERED
+277	    timer_s: seconds(s, 8),
+278	    moving_s: seconds(s, 59),
+279	    device_ascent_m: match int_opt(s, 22) {
+280	      Some(v) => v.to_double()
+281	      None => 0.0
+282	    },
+283	    device_descent_m: match int_opt(s, 23) {	<-- UNCOVERED
+284	      Some(v) => v.to_double()
+285	      None => 0.0
+286	    },
+287	    avg_hr: i32_opt(s, 16),	<-- UNCOVERED
+288	    max_hr: i32_opt(s, 17),
+289	  }
+290	}
+   	…
+
+78 uncovered line(s) in cmd\moonfit\dump.mbt:
+
+ 8	fn escape(s : String) -> String {
+ 9	  let mut out = ""	<-- UNCOVERED
+10	  for c in s {
+11	    match c {	<-- UNCOVERED
+12	      '"' => out = out + "\\\""
+13	      '\\' => out = out + "\\\\"
+14	      '\n' => out = out + "\\n"
+15	      '\r' => out = out + "\\r"
+16	      '\t' => out = out + "\\t"
+17	      _ => out = out + c.to_string()
+18	    }
+19	  }
+20	  out
+21	}
+  	…
+
+24	fn value_json(v : @fit.BaseValue, invalid : Bool) -> String {
+25	  match v {	<-- UNCOVERED
+26	    @fit.Array(elems) => {
+27	      let mut parts = ""
+28	      let mut i = 0
+29	      for e in elems {
+30	        if i > 0 {	<-- UNCOVERED
+31	          parts = parts + ","
+32	        }
+33	        parts = parts + value_json(e, false)	<-- UNCOVERED
+34	        i = i + 1
+35	      }
+36	      "[" + parts + "]"
+37	    }
+38	    @fit.Signed(x) => if invalid { "null" } else { x.to_string() }	<-- UNCOVERED
+39	    @fit.Unsigned(x) => if invalid { "null" } else { x.to_string() }
+40	    @fit.Real(d) => if invalid { "null" } else { d.to_string() }
+41	    @fit.Text(t) => if invalid { "null" } else { "\"" + escape(t) + "\"" }
+42	    @fit.Raw(b) => if invalid { "null" } else { "\"raw:\{b.length()}\"" }
+43	  }
+44	}
+  	…
+
+47	fn run_dump(argv : Array[String]) -> Int32 {
+48	  if argv.length() < 2 {	<-- UNCOVERED
+49	    eprintln("moonfit: dump needs a file argument")
+50	    return 2
+51	  }
+52	  let path = argv[1]
+53	  let data = @fs.read_file_to_bytes(path) catch {	<-- UNCOVERED
+54	    @fs.IOError(_) => {
+55	      eprintln("moonfit: cannot read \{path}")
+56	      return 2
+57	    }
+58	  }
+59	  let msgs = @fit.parse_messages(data) catch {	<-- UNCOVERED
+60	    _ => {
+61	      eprintln("moonfit: cannot decode \{path}")
+62	      return 2
+63	    }
+64	  }
+65	  for m in @fit.data_messages(msgs) {	<-- UNCOVERED
+66	    let ts = match m.ts_offset {
+67	      Some(t) => t.to_string()
+68	      None => "null"
+69	    }
+70	    let mut fj = ""
+71	    let mut i = 0
+72	    for f in m.fields {
+73	      if i > 0 {	<-- UNCOVERED
+74	        fj = fj + ","
+75	      }
+76	      let inv = if f.invalid { 1 } else { 0 }	<-- UNCOVERED
+77	      fj = fj +
+78	        "{\"d\":" +
+79	        f.def_num.to_string() +	<-- UNCOVERED
+80	        ",\"v\":" +
+81	        value_json(f.value, f.invalid) +	<-- UNCOVERED
+82	        ",\"i\":" +
+83	        inv.to_string() +	<-- UNCOVERED
+84	        "}"
+85	      i = i + 1
+86	    }
+87	    println(	<-- UNCOVERED
+88	      "{\"g\":\{m.global},\"l\":\{m.local_id},\"ts\":\{ts},\"f\":[\{fj}]}",
+89	    )
+90	  }
+91	  0
+92	}
+  	…
+
+ 95	fn run_roundtrip(argv : Array[String]) -> Int32 {
+ 96	  if argv.length() < 3 {	<-- UNCOVERED
+ 97	    eprintln("moonfit: roundtrip needs <in.fit> <out.fit>")
+ 98	    return 2
+ 99	  }
+100	  let data = @fs.read_file_to_bytes(argv[1]) catch {	<-- UNCOVERED
+101	    @fs.IOError(_) => {
+102	      eprintln("moonfit: cannot read \{argv[1]}")
+103	      return 2
+104	    }
+105	  }
+106	  let out = @fit.encode_fit(data) catch {	<-- UNCOVERED
+107	    _ => {
+108	      eprintln("moonfit: cannot re-encode \{argv[1]}")
+109	      return 2
+110	    }
+111	  }
+112	  @fs.write_bytes_to_file(argv[2], out) catch {	<-- UNCOVERED
+113	    @fs.IOError(_) => {
+114	      eprintln("moonfit: cannot write \{argv[2]}")
+115	      return 2
+116	    }
+117	  }
+118	  0
+119	}
+   	…
+
+122	fn to_int_def(s : String, def : Int32) -> Int32 {
+123	  @string.parse_int(s) catch {	<-- UNCOVERED
+124	    _ => def
+125	  }
+126	}
+   	…
+
+129	fn parse_bounds(csv : String) -> Array[Int32] {
+130	  let out : Array[Int32] = []	<-- UNCOVERED
+131	  if csv == "" {
+132	    return out	<-- UNCOVERED
+133	  }
+134	  let mut cur = ""
+135	  for c in csv {
+136	    if c == ',' {	<-- UNCOVERED
+137	      out.push(to_int_def(cur, 0))
+138	      cur = ""
+139	    } else {
+140	      cur = cur + c.to_string()	<-- UNCOVERED
+141	    }
+142	  }
+143	  out.push(to_int_def(cur, 0))	<-- UNCOVERED
+144	  out
+145	}
+   	…
+
+148	fn run_metrics(argv : Array[String]) -> Int32 {
+149	  if argv.length() < 2 {	<-- UNCOVERED
+150	    eprintln("moonfit: metrics needs a file argument")
+151	    return 2
+152	  }
+153	  let bounds = if argv.length() > 2 {	<-- UNCOVERED
+154	    parse_bounds(argv[2])
+155	  } else {
+156	    [100, 120, 140, 160]	<-- UNCOVERED
+157	  }
+158	  let window = if argv.length() > 3 { to_int_def(argv[3], 5) } else { 5 }	<-- UNCOVERED
+159	  let data = @fs.read_file_to_bytes(argv[1]) catch {
+160	    @fs.IOError(_) => {
+161	      eprintln("moonfit: cannot read \{argv[1]}")
+162	      return 2
+163	    }
+164	  }
+165	  let act = @model.from_fit(@fit.parse_messages(data)) catch {	<-- UNCOVERED
+166	    _ => {
+167	      eprintln("moonfit: cannot decode \{argv[1]}")
+168	      return 2
+169	    }
+170	  }
+171	  println(@metrics.to_json(@metrics.compute(act, bounds, window)))	<-- UNCOVERED
+172	  0
+173	}
+   	…
+
+176	fn opt_i32_json(v : Int32?) -> String {
+177	  match v {	<-- UNCOVERED
+178	    Some(x) => x.to_string()
+179	    None => "null"
+180	  }
+181	}
+   	…
+
+184	fn run_tcx(argv : Array[String]) -> Int32 {
+185	  if argv.length() < 2 {	<-- UNCOVERED
+186	    eprintln("moonfit: tcx needs a file argument")
+187	    return 2
+188	  }
+189	  let data = @fs.read_file_to_bytes(argv[1]) catch {	<-- UNCOVERED
+190	    @fs.IOError(_) => {
+191	      eprintln("moonfit: cannot read \{argv[1]}")
+192	      return 2
+193	    }
+194	  }
+195	  let t = @tcx.parse(data) catch {	<-- UNCOVERED
+196	    @tcx.Malformed(msg) => {
+197	      eprintln("moonfit: malformed TCX: \{msg}")
+198	      return 2
+199	    }
+200	  }
+201	  let a = t.activity
+202	  let first = if a.points.length() > 0 { a.points[0].timestamp } else { 0L }	<-- UNCOVERED
+203	  let last = if a.points.length() > 0 {
+204	    a.points[a.points.length() - 1].timestamp
+205	  } else {
+206	    0L	<-- UNCOVERED
+207	  }
+208	  let avghr = opt_i32_json(a.avg_hr)	<-- UNCOVERED
+209	  let maxhr = opt_i32_json(a.max_hr)
+210	  println(
+211	    "{\"sport\":\"" +
+212	    a.sport +
+213	    "\",\"sport_raw\":\"" +
+214	    t.sport_raw +
+215	    "\",\"sport_nonstandard\":" +
+216	    (if t.sport_nonstandard { "true" } else { "false" }) +	<-- UNCOVERED
+217	    ",\"n_points\":" +
+218	    a.points.length().to_string() +	<-- UNCOVERED
+219	    ",\"n_laps\":" +
+220	    a.laps.length().to_string() +	<-- UNCOVERED
+221	    ",\"device_distance_m\":" +
+222	    a.device_distance_m.to_string() +	<-- UNCOVERED
+223	    ",\"timer_s\":" +
+224	    a.timer_s.to_string() +	<-- UNCOVERED
+225	    ",\"avg_hr\":" +
+226	    avghr +
+227	    ",\"max_hr\":" +
+228	    maxhr +
+229	    ",\"first_ts\":" +
+230	    first.to_string() +	<-- UNCOVERED
+231	    ",\"last_ts\":" +
+232	    last.to_string() +	<-- UNCOVERED
+233	    "}",
+234	  )
+235	  0
+236	}
+   	…
+
+239	fn run_diff(argv : Array[String]) -> Int32 {
+240	  if argv.length() < 3 {	<-- UNCOVERED
+241	    eprintln("moonfit: diff needs <fit> <tcx>")
+242	    return 2
+243	  }
+244	  let fdata = @fs.read_file_to_bytes(argv[1]) catch {	<-- UNCOVERED
+245	    @fs.IOError(_) => {
+246	      eprintln("moonfit: cannot read \{argv[1]}")
+247	      return 2
+248	    }
+249	  }
+250	  let tdata = @fs.read_file_to_bytes(argv[2]) catch {	<-- UNCOVERED
+251	    @fs.IOError(_) => {
+252	      eprintln("moonfit: cannot read \{argv[2]}")
+253	      return 2
+254	    }
+255	  }
+256	  let fit = @model.from_fit(@fit.parse_messages(fdata)) catch {	<-- UNCOVERED
+257	    _ => {
+258	      eprintln("moonfit: cannot decode FIT \{argv[1]}")
+259	      return 2
+260	    }
+261	  }
+262	  let tcx = @tcx.parse(tdata) catch {	<-- UNCOVERED
+263	    @tcx.Malformed(msg) => {
+264	      eprintln("moonfit: malformed TCX: \{msg}")
+265	      return 2
+266	    }
+267	  }
+268	  println(	<-- UNCOVERED
+269	    @diff.to_json(@diff.compare(fit, tcx.activity, tcx.sport_nonstandard)),
+270	  )
+271	  0
+272	}
+   	…
+
+275	fn run_redact(argv : Array[String]) -> Int32 {
+276	  if argv.length() < 3 {	<-- UNCOVERED
+277	    eprintln("moonfit: redact needs <in.fit> <out.fit> [trim] [dlat] [dlon]")
+278	    return 2
+279	  }
+280	  let trim = if argv.length() > 3 { to_int_def(argv[3], 0) } else { 0 }	<-- UNCOVERED
+281	  let dlat = if argv.length() > 4 {
+282	    to_int_def(argv[4], 600000).to_int64()
+283	  } else {
+284	    600000L	<-- UNCOVERED
+285	  }
+286	  let dlon = if argv.length() > 5 {	<-- UNCOVERED
+287	    to_int_def(argv[5], -800000).to_int64()
+288	  } else {
+289	    -800000L	<-- UNCOVERED
+290	  }
+291	  let data = @fs.read_file_to_bytes(argv[1]) catch {	<-- UNCOVERED
+292	    @fs.IOError(_) => {
+293	      eprintln("moonfit: cannot read \{argv[1]}")
+294	      return 2
+295	    }
+296	  }
+297	  let out = @redact.redact(data, trim, dlat, dlon) catch {	<-- UNCOVERED
+298	    _ => {
+299	      eprintln("moonfit: cannot redact \{argv[1]}")
+300	      return 2
+301	    }
+302	  }
+303	  @fs.write_bytes_to_file(argv[2], out) catch {	<-- UNCOVERED
+304	    @fs.IOError(_) => {
+305	      eprintln("moonfit: cannot write \{argv[2]}")
+306	      return 2
+307	    }
+308	  }
+309	  0
+310	}
+   	…
+
+313	fn run_verify(argv : Array[String]) -> Int32 {
+314	  if argv.length() < 2 {	<-- UNCOVERED
+315	    eprintln("moonfit: verify needs a file argument")
+316	    return 2
+317	  }
+318	  let data = @fs.read_file_to_bytes(argv[1]) catch {	<-- UNCOVERED
+319	    @fs.IOError(_) => {
+320	      eprintln("moonfit: cannot read \{argv[1]}")
+321	      return 2
+322	    }
+323	  }
+324	  if @fit.verify(data) {	<-- UNCOVERED
+325	    println("ok")
+326	    0
+327	  } else {
+328	    eprintln("moonfit: invalid FIT \{argv[1]}")	<-- UNCOVERED
+329	    1
+330	  }
+331	}
+   	…
+
+334	fn run_info(argv : Array[String]) -> Int32 {
+335	  if argv.length() < 2 {	<-- UNCOVERED
+336	    eprintln("moonfit: info needs a file argument")
+337	    return 2
+338	  }
+339	  let data = @fs.read_file_to_bytes(argv[1]) catch {	<-- UNCOVERED
+340	    @fs.IOError(_) => {
+341	      eprintln("moonfit: cannot read \{argv[1]}")
+342	      return 2
+343	    }
+344	  }
+345	  let h = @fit.parse_header(data) catch {	<-- UNCOVERED
+346	    _ => {
+347	      eprintln("moonfit: bad header \{argv[1]}")
+348	      return 2
+349	    }
+350	  }
+351	  let msgs = @fit.parse_messages(data) catch {	<-- UNCOVERED
+352	    _ => {
+353	      eprintln("moonfit: bad record stream \{argv[1]}")
+354	      return 2
+355	    }
+356	  }
+357	  let data_n = @fit.data_messages(msgs).length()	<-- UNCOVERED
+358	  println(
+359	    "{\"header_size\":" +
+360	    h.header_size.to_string() +	<-- UNCOVERED
+361	    ",\"protocol\":\"" +
+362	    @fit.protocol_major(h).to_string() +	<-- UNCOVERED
+363	    "." +
+364	    @fit.protocol_minor(h).to_string() +	<-- UNCOVERED
+365	    "\",\"profile\":" +
+366	    h.profile.to_string() +	<-- UNCOVERED
+367	    ",\"data_size\":" +
+368	    h.data_size.to_string() +	<-- UNCOVERED
+369	    ",\"has_header_crc\":" +
+370	    (if h.has_header_crc { "true" } else { "false" }) +	<-- UNCOVERED
+371	    ",\"file_crc_ok\":" +
+372	    (if @fit.file_crc_ok(data) { "true" } else { "false" }) +	<-- UNCOVERED
+373	    ",\"data_messages\":" +
+374	    data_n.to_string() +	<-- UNCOVERED
+375	    ",\"records\":" +
+376	    @fit.count_global(msgs, 20).to_string() +	<-- UNCOVERED
+377	    "}",
+378	  )
+379	  0
+380	}
+   	…
+
+19 uncovered line(s) in cmd\moonfit\main.mbt:
+
+ 5	fn build_command() -> @argparse.Command {
+ 6	  @argparse.Command(	<-- UNCOVERED
+ 7	    "moonfit",
+ 8	    about="Garmin FIT activity codec with byte-exact round-trip, TCX decoding, and measured cross-format divergence reports.",
+ 9	    version=moonfit_version,
+10	    subcommands=[
+11	      @argparse.Command("version", about="Print the module version"),
+12	      @argparse.Command(
+13	        "units",
+14	        about="Print the FIT wire-unit table and the independent source of each G7 constant",
+15	      ),
+16	    ],
+17	  )
+18	}
+  	…
+
+28	fn is_program_token(token : String) -> Bool {
+29	  token == "moonfit" ||	<-- UNCOVERED
+30	  token == "node" ||
+31	  token.has_suffix(".exe") ||	<-- UNCOVERED
+32	  token.has_suffix(".js") ||
+33	  token.has_suffix(".wasm") ||
+34	  token.contains("/") ||
+35	  token.contains("\\")
+36	}
+  	…
+
+39	fn user_args(args : Array[String]) -> Array[String] {
+40	  let mut start = 0	<-- UNCOVERED
+41	  while start < args.length() && is_program_token(args[start]) {
+42	    start = start + 1
+43	  }
+44	  let out : Array[String] = []
+45	  let mut index = start
+46	  while index < args.length() {	<-- UNCOVERED
+47	    out.push(args[index])
+48	    index = index + 1
+49	  }
+50	  out
+51	}
+  	…
+
+ 54	fn main {
+ 55	  let command = build_command()	<-- UNCOVERED
+ 56	  let argv = user_args(@env.args())
+ 57	  // An explicit --help exits 0, but being invoked with no command at all is a
+ 58	  // usage error and exits 2. argparse folds both into one Help outcome when
+ 59	  // arg_required_else_help is set, so the empty case is decided here instead.
+ 60	  if argv.length() > 0 && argv[0] == "dump" {	<-- UNCOVERED
+ 61	    @env.exit(run_dump(argv))
+ 62	  }
+ 63	  if argv.length() > 0 && argv[0] == "roundtrip" {	<-- UNCOVERED
+ 64	    @env.exit(run_roundtrip(argv))
+ 65	  }
+ 66	  if argv.length() > 0 && argv[0] == "metrics" {	<-- UNCOVERED
+ 67	    @env.exit(run_metrics(argv))
+ 68	  }
+ 69	  if argv.length() > 0 && argv[0] == "tcx" {	<-- UNCOVERED
+ 70	    @env.exit(run_tcx(argv))
+ 71	  }
+ 72	  if argv.length() > 0 && argv[0] == "diff" {	<-- UNCOVERED
+ 73	    @env.exit(run_diff(argv))
+ 74	  }
+ 75	  if argv.length() > 0 && argv[0] == "redact" {	<-- UNCOVERED
+ 76	    @env.exit(run_redact(argv))
+ 77	  }
+ 78	  if argv.length() > 0 && argv[0] == "verify" {	<-- UNCOVERED
+ 79	    @env.exit(run_verify(argv))
+ 80	  }
+ 81	  if argv.length() > 0 && argv[0] == "info" {	<-- UNCOVERED
+ 82	    @env.exit(run_info(argv))
+ 83	  }
+ 84	  if argv.length() == 0 {	<-- UNCOVERED
+ 85	    eprintln("moonfit: no command given")
+ 86	    eprintln("")
+ 87	    eprintln(command.render_help())
+ 88	    @env.exit(2)
+ 89	  }
+ 90	  let outcome = command.parse_outcome(argv~)	<-- UNCOVERED
+ 91	  let code : Int32 = match outcome {
+ 92	    @argparse.Parsed(matches) => dispatch(matches)
+ 93	    @argparse.Help(text) => {
+ 94	      println(text)
+ 95	      0
+ 96	    }
+ 97	    @argparse.Version(text) => {	<-- UNCOVERED
+ 98	      println(text)
+ 99	      0
+100	    }
+101	    @argparse.Failed(err) => {	<-- UNCOVERED
+102	      eprintln(err)
+103	      2
+104	    }
+105	  }
+106	  @env.exit(code)	<-- UNCOVERED
+107	}
+   	…
+
+6 uncovered line(s) in src\fit\basetype.mbt:
+
+56	pub fn endian_from_byte(b : Int32) -> Endian {
+57	  if b == 0 {
+58	    Little
+59	  } else {
+60	    Big	<-- UNCOVERED
+61	  }
+62	}
+  	…
+
+139	fn byte_at(data : Bytes, index : Int32) -> Int32 raise FitError {
+140	  match data.get(index) {
+141	    Some(b) => b.to_int()
+142	    None => raise FitError::Truncated("byte index \{index} out of range")	<-- UNCOVERED
+143	  }
+144	}
+   	…
+
+257	pub fn encode_base(
+258	  t : BaseType,
+259	  value : BaseValue,
+260	  endian : Endian,
+261	) -> Bytes raise FitError {
+262	  match (t, value) {
+263	    (Str, Text(s)) =>
+264	      Bytes::add(@utf8.encode(s), Bytes::from_array([0L.to_byte()]))
+265	    (Float64, Real(d)) => write_uint(d.reinterpret_as_uint64(), 8, endian)
+266	    (Float32, Real(d)) =>
+267	      write_uint(
+268	        Float::from_double(d).reinterpret_as_uint().to_uint64(),
+269	        4,
+270	        endian,
+271	      )
+272	    (Sint8 | Sint16 | Sint32 | Sint64, Signed(v)) =>
+273	      write_uint(v.reinterpret_as_uint64(), t.size(), endian)
+274	    (_, Array(elems)) => {	<-- UNCOVERED
+275	      let mut acc = Bytes::from_array([])
+276	      for e in elems {
+277	        acc = Bytes::add(acc, encode_base(t, e, endian))	<-- UNCOVERED
+278	      }
+279	      acc
+280	    }
+281	    (_, Raw(b)) => b	<-- UNCOVERED
+282	    (_, Unsigned(v)) => write_uint(v, t.size(), endian)
+283	    _ => raise FitError::BaseValueMismatch("value does not match base type")	<-- UNCOVERED
+284	  }
+285	}
+   	…
+
+16 uncovered line(s) in src\redact\redact.mbt:
+
+12	fn wrap32(v : Int64) -> Int64 {
+13	  let m = v % 4294967296L	<-- UNCOVERED
+14	  let mm = if m < 0L { m + 4294967296L } else { m }
+15	  if mm >= 2147483648L {
+16	    mm - 4294967296L	<-- UNCOVERED
+17	  } else {
+18	    mm	<-- UNCOVERED
+19	  }
+20	}
+  	…
+
+23	fn is_lat(global : Int32, def : Int32) -> Bool {
+24	  (global == 20 && def == 0) ||	<-- UNCOVERED
+25	  (global == 18 && (def == 3 || def == 29)) ||
+26	  (global == 19 && (def == 3 || def == 5))
+27	}
+  	…
+
+30	fn is_lon(global : Int32, def : Int32) -> Bool {
+31	  (global == 20 && def == 1) ||	<-- UNCOVERED
+32	  (global == 18 && (def == 4 || def == 30)) ||
+33	  (global == 19 && (def == 4 || def == 6))
+34	}
+  	…
+
+ 37	pub fn redact(
+ 38	  data : Bytes,
+ 39	  trim : Int32,
+ 40	  dlat : Int64,
+ 41	  dlon : Int64,
+ 42	) -> Bytes raise @fit.FitError {
+ 43	  let h = @fit.parse_header(data)	<-- UNCOVERED
+ 44	  let msgs = @fit.parse_messages(data)
+ 45	  let endian_of : Array[@fit.Endian?] = Array::make(16, None)
+ 46	  for m in msgs {
+ 47	    match m {	<-- UNCOVERED
+ 48	      @fit.Def(d) => endian_of[d.local_id] = Some(d.endian)
+ 49	      _ => ()
+ 50	    }
+ 51	  }
+ 52	  let total_records = @fit.count_global(msgs, 20)	<-- UNCOVERED
+ 53	  let out : Array[@fit.Message] = []
+ 54	  let mut rec_idx = 0
+ 55	  for m in msgs {
+ 56	    match m {	<-- UNCOVERED
+ 57	      @fit.Def(_) => out.push(m)
+ 58	      @fit.Data(dm) => {
+ 59	        let mut keep = true
+ 60	        if dm.global == 20 {
+ 61	          keep = rec_idx >= trim && rec_idx < total_records - trim	<-- UNCOVERED
+ 62	          rec_idx = rec_idx + 1
+ 63	        }
+ 64	        if keep {
+ 65	          let e = match endian_of[dm.local_id] {	<-- UNCOVERED
+ 66	            Some(x) => x
+ 67	            None => @fit.Little
+ 68	          }
+ 69	          let nf : Array[@fit.FieldValue] = []
+ 70	          for f in dm.fields {
+ 71	            let mut raw = f.raw	<-- UNCOVERED
+ 72	            if (dm.global == 0 || dm.global == 23) && f.def_num == 3 {
+ 73	              raw = Bytes::make(f.raw.length(), 0L.to_byte())	<-- UNCOVERED
+ 74	            } else if !f.invalid &&
+ 75	              (is_lat(dm.global, f.def_num) || is_lon(dm.global, f.def_num)) {
+ 76	              let delta = if is_lat(dm.global, f.def_num) { dlat } else { dlon }
+ 77	              let v = @fit.read_uint(raw, 0, 4, e).reinterpret_as_int64()
+ 78	              raw = @fit.write_uint(
+ 79	                wrap32(v + delta).reinterpret_as_uint64(),
+ 80	                4,
+ 81	                e,
+ 82	              )
+ 83	            }
+ 84	            nf.push({	<-- UNCOVERED
+ 85	              def_num: f.def_num,
+ 86	              value: f.value,
+ 87	              invalid: f.invalid,
+ 88	              raw,
+ 89	            })
+ 90	          }
+ 91	          out.push(	<-- UNCOVERED
+ 92	            @fit.Data({
+ 93	              local_id: dm.local_id,
+ 94	              global: dm.global,
+ 95	              fields: nf,
+ 96	              dev_data: dm.dev_data,
+ 97	              ts_offset: dm.ts_offset,
+ 98	              timestamp: dm.timestamp,
+ 99	            }),
+100	          )
+101	        }
+102	      }
+103	    }
+104	  }
+105	  @fit.encode(h, out)	<-- UNCOVERED
+106	}
+   	…
+
+24 uncovered line(s) in src\metrics\metrics.mbt:
+
+ 92	fn gps_distance(points : Array[@model.TrackPoint]) -> Double {
+ 93	  let mut total = 0.0
+ 94	  let mut i = 1
+ 95	  while i < points.length() {
+ 96	    let p = points[i - 1]
+ 97	    let q = points[i]
+ 98	    match (p.lat, p.lon, q.lat, q.lon) {
+ 99	      (Some(a), Some(b), Some(c), Some(d)) =>
+100	        total = total + haversine(a, b, c, d)	<-- UNCOVERED
+101	      _ => ()
+102	    }
+103	    i = i + 1
+104	  }
+105	  total
+106	}
+   	…
+
+109	fn computed_ascent(alts : Array[Double], window : Int32) -> Double {
+110	  if alts.length() < 2 {
+111	    return 0.0	<-- UNCOVERED
+112	  }
+113	  let win = if window < 1 { 1 } else { window }
+114	  let smooth : Array[Double] = []
+115	  let mut i = 0
+116	  while i < alts.length() {
+117	    let start = if i - win + 1 > 0 { i - win + 1 } else { 0 }
+118	    let mut sum = 0.0
+119	    let mut n = 0
+120	    let mut j = start
+121	    while j <= i {
+122	      sum = sum + alts[j]
+123	      n = n + 1
+124	      j = j + 1
+125	    }
+126	    smooth.push(sum / n.to_double())
+127	    i = i + 1
+128	  }
+129	  let mut asc = 0.0
+130	  let mut k = 1
+131	  while k < smooth.length() {
+132	    let d = smooth[k] - smooth[k - 1]
+133	    if d > 0.0 {
+134	      asc = asc + d
+135	    }
+136	    k = k + 1
+137	  }
+138	  asc
+139	}
+   	…
+
+142	fn hr_zones(
+143	  points : Array[@model.TrackPoint],
+144	  bounds : Array[Int32],
+145	) -> Array[ZoneTime] {
+146	  let secs : Array[Int64] = Array::make(bounds.length() + 1, 0L)
+147	  let mut i = 0
+148	  while i + 1 < points.length() {
+149	    let p = points[i]
+150	    let q = points[i + 1]
+151	    match p.heart_rate {
+152	      Some(hr) => {
+153	        let dt = q.timestamp - p.timestamp
+154	        if dt > 0L {
+155	          let mut idx = 0
+156	          for bnd in bounds {
+157	            if hr >= bnd {
+158	              idx = idx + 1
+159	            }
+160	          }
+161	          secs[idx] = secs[idx] + dt
+162	        }
+163	      }
+164	      None => ()	<-- UNCOVERED
+165	    }
+166	    i = i + 1
+167	  }
+168	  let out : Array[ZoneTime] = []
+169	  let mut z = 0
+170	  while z < secs.length() {
+171	    out.push({
+172	      lower: if z == 0 {
+173	        None
+174	      } else {
+175	        Some(bounds[z - 1])
+176	      },
+177	      upper: if z == bounds.length() {
+178	        None
+179	      } else {
+180	        Some(bounds[z])
+181	      },
+182	      seconds: secs[z],
+183	    })
+184	    z = z + 1
+185	  }
+186	  out
+187	}
+   	…
+
+190	fn splits(points : Array[@model.TrackPoint], start : Int64) -> Array[Split] {
+191	  let out : Array[Split] = []
+192	  let mut last_km = 0
+193	  let mut last_ts = start
+194	  for p in points {
+195	    match p.distance_m {
+196	      Some(d) => {
+197	        let km = @math.floor(d / 1000.0).to_int()
+198	        if km > last_km {
+199	          let mut k = last_km + 1
+200	          while k <= km {
+201	            out.push({
+202	              index: k,
+203	              end_distance_m: k.to_double() * 1000.0,
+204	              time_s: p.timestamp - last_ts,
+205	            })
+206	            k = k + 1
+207	          }
+208	          last_ts = p.timestamp
+209	          last_km = km
+210	        }
+211	      }
+212	      None => ()	<-- UNCOVERED
+213	    }
+214	  }
+215	  out
+216	}
+   	…
+
+219	pub fn compute(
+220	  act : @model.Activity,
+221	  hr_bounds : Array[Int32],
+222	  ascent_window : Int32,
+223	) -> Metrics {
+224	  let gps = gps_distance(act.points)
+225	  let avg_speed = if act.timer_s > 0.0 { gps / act.timer_s } else { 0.0 }
+226	  let pace = if avg_speed > 0.0 { 1000.0 / avg_speed / 60.0 } else { 0.0 }
+227	  let alts : Array[Double] = []
+228	  for p in act.points {
+229	    match p.altitude_m {
+230	      Some(a) => alts.push(a)
+231	      None => ()	<-- UNCOVERED
+232	    }
+233	  }
+234	  {
+235	    device_distance_m: act.device_distance_m,
+236	    gps_distance_m: gps,
+237	    elapsed_s: act.elapsed_s,
+238	    timer_s: act.timer_s,
+239	    moving_s: act.moving_s,
+240	    avg_speed_mps: avg_speed,
+241	    avg_pace_min_per_km: pace,
+242	    device_ascent_m: act.device_ascent_m,
+243	    device_descent_m: act.device_descent_m,
+244	    computed_ascent_m: computed_ascent(alts, ascent_window),
+245	    hr_zones: hr_zones(act.points, hr_bounds),
+246	    splits: splits(act.points, act.start_time),
+247	  }
+248	} ///|
+   	…
+
+251	pub fn to_json(m : Metrics) -> String {
+252	  let mut zones = ""	<-- UNCOVERED
+253	  let mut i = 0
+254	  for z in m.hr_zones {
+255	    if i > 0 {	<-- UNCOVERED
+256	      zones = zones + ","
+257	    }
+258	    let lo = match z.lower {	<-- UNCOVERED
+259	      Some(v) => v.to_string()
+260	      None => "null"
+261	    }
+262	    let hi = match z.upper {	<-- UNCOVERED
+263	      Some(v) => v.to_string()
+264	      None => "null"
+265	    }
+266	    zones = zones +
+267	      "{\"lower\":" +
+268	      lo +
+269	      ",\"upper\":" +
+270	      hi +
+271	      ",\"seconds\":" +
+272	      z.seconds.to_string() +	<-- UNCOVERED
+273	      "}"
+274	    i = i + 1
+275	  }
+276	  let mut sp = ""
+277	  let mut j = 0
+278	  for s in m.splits {
+279	    if j > 0 {	<-- UNCOVERED
+280	      sp = sp + ","
+281	    }
+282	    sp = sp +
+283	      "{\"index\":" +
+284	      s.index.to_string() +	<-- UNCOVERED
+285	      ",\"end_distance_m\":" +
+286	      s.end_distance_m.to_string() +	<-- UNCOVERED
+287	      ",\"time_s\":" +
+288	      s.time_s.to_string() +	<-- UNCOVERED
+289	      "}"
+290	    j = j + 1
+291	  }
+292	  "{\"device_distance_m\":" +
+293	  m.device_distance_m.to_string() +	<-- UNCOVERED
+294	  ",\"gps_distance_m\":" +
+295	  m.gps_distance_m.to_string() +	<-- UNCOVERED
+296	  ",\"elapsed_s\":" +
+297	  m.elapsed_s.to_string() +	<-- UNCOVERED
+298	  ",\"timer_s\":" +
+299	  m.timer_s.to_string() +	<-- UNCOVERED
+300	  ",\"moving_s\":" +
+301	  m.moving_s.to_string() +	<-- UNCOVERED
+302	  ",\"avg_speed_mps\":" +
+303	  m.avg_speed_mps.to_string() +	<-- UNCOVERED
+304	  ",\"avg_pace_min_per_km\":" +
+305	  m.avg_pace_min_per_km.to_string() +	<-- UNCOVERED
+306	  ",\"device_ascent_m\":" +
+307	  m.device_ascent_m.to_string() +	<-- UNCOVERED
+308	  ",\"device_descent_m\":" +
+309	  m.device_descent_m.to_string() +	<-- UNCOVERED
+310	  ",\"computed_ascent_m\":" +
+311	  m.computed_ascent_m.to_string() +	<-- UNCOVERED
+312	  ",\"hr_zones\":[" +
+313	  zones +
+314	  "]" +
+315	  ",\"splits\":[" +
+316	  sp +
+317	  "]}"
+318	}
+   	…
+
+5 uncovered line(s) in cmd\moonfit\dispatch.mbt:
+
+ 2	fn dispatch(matches : @argparse.Matches) -> Int32 {
+ 3	  match matches.subcommand {	<-- UNCOVERED
+ 4	    Some((name, _)) =>
+ 5	      match name {	<-- UNCOVERED
+ 6	        "version" => {
+ 7	          println(moonfit_version)
+ 8	          0
+ 9	        }
+10	        "units" => {	<-- UNCOVERED
+11	          print_unit_table()
+12	          0
+13	        }
+14	        _ => {	<-- UNCOVERED
+15	          eprintln("moonfit: unknown command '\{name}'")
+16	          2
+17	        }
+18	      }
+19	    None => {	<-- UNCOVERED
+20	      eprintln("moonfit: no command given")
+21	      2
+22	    }
+23	  }
+24	}
+  	…
+
+4 uncovered line(s) in cmd\moonfit\units_table.mbt:
+
+19	pub fn unit_table() -> Array[UnitRow] {
+20	  [	<-- UNCOVERED
+21	    {
+22	      field: "position_lat, position_long",
+23	      wire: "sint32 semicircles",
+24	      stored_as: "Semicircle (Int64)",
+25	      conversion: "degrees = semis * 180 / 2^31",
+26	      constant_source: "266661528 -> 22.351311072707176, equal to the GPX export of the same point",
+27	    },
+28	    {
+29	      field: "timestamp, start_time, local_timestamp",
+30	      wire: "uint32 seconds since 1989-12-31T00:00:00Z",
+31	      stored_as: "FitTimestamp (Int64)",
+32	      conversion: "unix = fit + 631065600",
+33	      constant_source: "1163581919 -> 2026-11-14T09:11:59Z, equal to the timestamp in the file name the device wrote",
+34	    },
+35	    {
+36	      field: "distance, total_distance",
+37	      wire: "uint32 centimetres",
+38	      stored_as: "Centimetre (Int64)",
+39	      conversion: "metres = cm / 100",
+40	      constant_source: "3170445 -> 31704.45 m, equal to the TCX Lap DistanceMeters of the same activity",
+41	    },
+42	    {
+43	      field: "altitude, enhanced_altitude",
+44	      wire: "uint16 or uint32 as (metres + 500) * 5",
+45	      stored_as: "Decimetre (Int64) via raw * 2 - 5000",
+46	      conversion: "metres = dm / 10",
+47	      constant_source: "2458 -> -84 dm -> exactly -8.4 m, while the naive 2458 / 5.0 - 500.0 gives -8.399999999999977",
+48	    },
+49	    {
+50	      field: "speed, enhanced_speed, avg_speed, max_speed",
+51	      wire: "uint16 or uint32 millimetres per second",
+52	      stored_as: "MillimetrePerSecond (Int64)",
+53	      conversion: "m/s = mmps / 1000",
+54	      constant_source: "6964 -> 6.964 m/s, equal to the TCX Extensions TPX Speed of the same point",
+55	    },
+56	    {
+57	      field: "total_elapsed_time, total_timer_time, total_moving_time",
+58	      wire: "uint32 milliseconds",
+59	      stored_as: "Millisecond (Int64)",
+60	      conversion: "seconds = ms / 1000",
+61	      constant_source: "5355000 -> 5355.0 s, equal to the TCX Lap TotalTimeSeconds of the same activity",
+62	    },
+63	    {
+64	      field: "avg_grade, avg_pos_grade, max_neg_grade",
+65	      wire: "sint16 hundredths of a percent",
+66	      stored_as: "CentiPercent (Int64)",
+67	      conversion: "percent = cp / 100",
+68	      constant_source: "515 -> 5.15 percent, -421 -> -4.21 percent",
+69	    },
+70	    {
+71	      field: "heart_rate, cadence, power, temperature",
+72	      wire: "uint8, uint8, uint16, sint8; scale 1",
+73	      stored_as: "Bpm, Rpm, Watt, Celsius (Int64)",
+74	      conversion: "identity; the types only prevent interchange",
+75	      constant_source: "heart_rate and cadence are both uint8 on the wire, so only the type keeps them apart",
+76	    },
+77	  ]
+78	}
+  	…
+
+ 81	pub fn print_unit_table() -> Unit {
+ 82	  println("FIT wire units, the exact integer type each is stored in, and the")	<-- UNCOVERED
+ 83	  println("independent source of every constant asserted by gate G7.")
+ 84	  println("")
+ 85	  for row in unit_table() {
+ 86	    println("field      : \{row.field}")
+ 87	    println("on the wire: \{row.wire}")
+ 88	    println("stored as  : \{row.stored_as}")
+ 89	    println("conversion : \{row.conversion}")
+ 90	    println("constant   : \{row.constant_source}")
+ 91	    println("")
+ 92	  }
+ 93	  println("Live values from the units package:")	<-- UNCOVERED
+ 94	  println("  fit epoch in unix seconds  = \{@units.fit_epoch_unix}")
+ 95	  println("  semicircles per half turn  = \{@units.semicircles_per_half_turn}")
+ 96	  let one = @units.degrees_of_semicircle(@units.semicircle(1L))
+ 97	  println("  one semicircle in degrees  = \{@units.degrees_value(one)}")
+ 98	  let anchor = @units.metre_of_decimetre(
+ 99	    @units.decimetre_of_altitude_raw(@units.altitude_raw(2500L)),
+100	  )
+101	  println("  altitude raw 2500 in metres = \{@units.metre_value(anchor)}")	<-- UNCOVERED
+102	}
+   	…
+
+14 uncovered line(s) in examples\wire_units\main.mbt:
+
+13	fn main {
+14	  // The first record of the ride, exactly as the device wrote it.
+15	  let raw_lat = 266661528L	<-- UNCOVERED
+16	  let raw_lon = 1355157796L
+17	  let raw_timestamp = 1163581919L
+18	  let raw_distance_cm = 3170445L
+19	  let raw_speed_mmps = 6964L
+20	  let raw_altitude = 2458L
+21	  let raw_timer_ms = 4310000L
+22	
+23	  let lat = @units.degrees_of_semicircle(@units.semicircle(raw_lat))	<-- UNCOVERED
+24	  let lon = @units.degrees_of_semicircle(@units.semicircle(raw_lon))
+25	  println(
+26	    "position    : \{@units.degrees_value(lat)}, \{@units.degrees_value(lon)}",
+27	  )
+28	
+29	  match @units.iso8601_of_fit_timestamp(@units.fit_timestamp(raw_timestamp)) {	<-- UNCOVERED
+30	    Some(text) => println("timestamp   : \{text}")
+31	    None => println("timestamp   : <unrepresentable year>")
+32	  }
+33	
+34	  let distance = @units.metre_of_centimetre(@units.centimetre(raw_distance_cm))	<-- UNCOVERED
+35	  println("distance    : \{@units.metre_value(distance)} m")
+36	
+37	  let speed = @units.metre_per_second_of_millimetre_per_second(	<-- UNCOVERED
+38	    @units.millimetre_per_second(raw_speed_mmps),
+39	  )
+40	  println("speed       : \{@units.metre_per_second_value(speed)} m/s")	<-- UNCOVERED
+41	
+42	  // Altitude goes through decimetres so the result is exact. The naive float
+43	  // expression raw / 5.0 - 500.0 does not produce the same Double.
+44	  let decimetres = @units.decimetre_of_altitude_raw(	<-- UNCOVERED
+45	    @units.altitude_raw(raw_altitude),
+46	  )
+47	  let altitude = @units.metre_of_decimetre(decimetres)	<-- UNCOVERED
+48	  println(
+49	    "altitude    : \{@units.metre_value(altitude)} m (exact, via \{@units.decimetre_value(decimetres)} dm)",
+50	  )
+51	  println(	<-- UNCOVERED
+52	    "naive float : \{raw_altitude.to_double() / 5.0 - 500.0} m (a different Double)",
+53	  )
+54	
+55	  let timer = @units.second_of_millisecond(@units.millisecond(raw_timer_ms))	<-- UNCOVERED
+56	  println("timer time  : \{@units.second_value(timer)} s")
+57	
+58	  // The inverse conversion refuses a value it cannot represent exactly rather
+59	  // than truncating it.
+60	  match @units.altitude_raw_of_decimetre(decimetres) {	<-- UNCOVERED
+61	    Some(back) =>
+62	      println(	<-- UNCOVERED
+63	        "inverse     : \{@units.altitude_raw_value(back)} (round trip exact)",
+64	      )
+65	    None => println("inverse     : <no exact representation>")	<-- UNCOVERED
+66	  }
+67	  match @units.altitude_raw_of_decimetre(@units.decimetre(-83L)) {	<-- UNCOVERED
+68	    Some(_) => println("odd dm      : unexpectedly representable")
+69	    None => println("odd dm      : no exact altitude raw, reported as None")
+70	  }
+71	}
+  	…
+
+Total: 273 uncovered line(s) in 16 file(s)

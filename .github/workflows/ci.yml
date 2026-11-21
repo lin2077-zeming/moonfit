@@ -92,6 +92,9 @@ jobs:
       - name: Gate G6 - robustness / mutation rejection
         run: python3 scripts/check_g6.py
 
+      - name: Gate G8 - per-field disposition coverage
+        run: python3 scripts/check_g8.py
+
       - name: Test native target
         run: moon test --target native --deny-warn
 

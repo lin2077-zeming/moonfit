@@ -32,6 +32,10 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   architecture byte), normal and compressed-timestamp data messages, local-type
   redefinition, and exact consumption of the data section. Array / opaque
   fields are carried as raw bytes; scalar fields are decoded and invalid-flagged.
+- Exhaustive base-type round-trip and invalid-detection tests (206 generated
+  cases) bringing the suite to 257 tests across four backends; Gate G8 asserts
+  every definition field of every corpus message is emitted with an explicit
+  disposition (140 distinct fields). Coverage report added (docs/coverage.md).
 - `fit::verify` total validity check and Gate G6: typed errors for malformed
   inputs plus an exhaustive single-byte mutation sweep (every byte of the embedded
   corpus flipped) rejected on all four backends; a CI gate repeats header/data/CRC

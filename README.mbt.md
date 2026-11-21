@@ -81,7 +81,27 @@ The altitude lines are the point of the whole design in two lines of output.
 quantity, and they are not the same `Double`. Only the integer one can be
 asserted against a constant, and only the integer one round-trips back to 2458.
 
+## Commands
+
+```text
+moonfit version                 print the module version
+moonfit units                   FIT wire-unit table + constant provenance
+moonfit info <f.fit>            header, CRC status and message counts (JSON)
+moonfit verify <f.fit>          total validity; exit 0 valid / 1 invalid
+moonfit dump <f.fit>            JSONL of raw field values per data message
+moonfit roundtrip <in> <out>    structure-preserving re-encode (byte-exact)
+moonfit metrics <f.fit> [bounds] [window]   derived metrics (JSON)
+moonfit tcx <f.tcx>             TCX -> canonical model summary (JSON)
+moonfit diff <f.fit> <f.tcx>    FIT vs TCX divergence report (JSON)
+moonfit redact <in> <out> [trim] [dlat] [dlon]   native redaction
+```
+
 ## Verification
+
+Eight gates (G1-G8), all binary judgements, run in CI on every push; the corpus
+gates run the compiled binary over all six rides / eight runs. See
+[`docs/testing.md`](docs/testing.md) and [`docs/coverage.md`](docs/coverage.md).
+
 
 The gates are defined in [`docs/testing.md`](docs/testing.md). Each one is a
 binary comparison against a value derived independently of the code under test.
