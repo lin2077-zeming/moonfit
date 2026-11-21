@@ -51,6 +51,7 @@ pub(all) struct Metrics {
   timer_s : Double
   moving_s : Double
   avg_speed_mps : Double
+  gps_avg_speed_mps : Double
   avg_pace_min_per_km : Double
   device_ascent_m : Double
   device_descent_m : Double
@@ -222,7 +223,12 @@ pub fn compute(
   ascent_window : Int32,
 ) -> Metrics {
   let gps = gps_distance(act.points)
-  let avg_speed = if act.timer_s > 0.0 { gps / act.timer_s } else { 0.0 }
+  let avg_speed = if act.timer_s > 0.0 {
+    act.device_distance_m / act.timer_s
+  } else {
+    0.0
+  }
+  let gps_avg_speed = if act.timer_s > 0.0 { gps / act.timer_s } else { 0.0 }
   let pace = if avg_speed > 0.0 { 1000.0 / avg_speed / 60.0 } else { 0.0 }
   let alts : Array[Double] = []
   for p in act.points {
@@ -238,6 +244,7 @@ pub fn compute(
     timer_s: act.timer_s,
     moving_s: act.moving_s,
     avg_speed_mps: avg_speed,
+    gps_avg_speed_mps: gps_avg_speed,
     avg_pace_min_per_km: pace,
     device_ascent_m: act.device_ascent_m,
     device_descent_m: act.device_descent_m,
@@ -301,6 +308,8 @@ pub fn to_json(m : Metrics) -> String {
   m.moving_s.to_string() +
   ",\"avg_speed_mps\":" +
   m.avg_speed_mps.to_string() +
+  ",\"gps_avg_speed_mps\":" +
+  m.gps_avg_speed_mps.to_string() +
   ",\"avg_pace_min_per_km\":" +
   m.avg_pace_min_per_km.to_string() +
   ",\"device_ascent_m\":" +

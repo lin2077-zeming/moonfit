@@ -66,3 +66,49 @@ test "metrics: synthetic activity splits, zones and ascent" {
   assert_eq(m.splits[0].time_s, 10L)
   assert_eq(m.splits[1].time_s, 10L)
 }
+
+///|
+test "P0-2: no-GPS activity uses device distance for avg speed/pace" {
+  let act : @model.Activity = {
+    sport: "running",
+    sub_sport: "treadmill",
+    start_time: 0L,
+    points: [
+      {
+        timestamp: 0L,
+        lat: None,
+        lon: None,
+        altitude_m: None,
+        distance_m: Some(0.0),
+        speed_mps: None,
+        heart_rate: None,
+        cadence: None,
+        temperature: None,
+      },
+      {
+        timestamp: 20L,
+        lat: None,
+        lon: None,
+        altitude_m: None,
+        distance_m: Some(1000.0),
+        speed_mps: None,
+        heart_rate: None,
+        cadence: None,
+        temperature: None,
+      },
+    ],
+    laps: [],
+    device_distance_m: 1000.0,
+    elapsed_s: 20.0,
+    timer_s: 20.0,
+    moving_s: 20.0,
+    device_ascent_m: 0.0,
+    device_descent_m: 0.0,
+    avg_hr: None,
+    max_hr: None,
+  }
+  let m = @metrics.compute(act, [], 1)
+  assert_eq(m.gps_distance_m, 0.0)
+  assert_eq(m.avg_speed_mps, 50.0)
+  assert_eq(m.avg_pace_min_per_km, 1000.0 / 50.0 / 60.0)
+}

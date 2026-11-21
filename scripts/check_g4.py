@@ -103,7 +103,7 @@ def reference(path):
         "device_ascent_m": float(ses[22]),
         "device_descent_m": float(ses[23]),
         "gps_distance_m": gps,
-        "avg_speed_mps": gps / timer if timer else 0.0,
+        "avg_speed_mps": (ses[9] / 100.0) / timer if timer else 0.0,
         "computed_ascent_m": ascent,
         "hr_seconds": secs,
         "splits": splits,
