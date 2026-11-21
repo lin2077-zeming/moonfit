@@ -112,3 +112,78 @@ test "P0-2: no-GPS activity uses device distance for avg speed/pace" {
   assert_eq(m.avg_speed_mps, 50.0)
   assert_eq(m.avg_pace_min_per_km, 1000.0 / 50.0 / 60.0)
 }
+
+///|
+fn pt(ts : Int64, d : Double) -> @model.TrackPoint {
+  {
+    timestamp: ts,
+    lat: None,
+    lon: None,
+    altitude_m: None,
+    distance_m: Some(d),
+    speed_mps: None,
+    heart_rate: None,
+    cadence: None,
+    temperature: None,
+  }
+}
+
+///|
+fn act_of(
+  points : Array[@model.TrackPoint],
+  dist : Double,
+  timer : Double,
+) -> @model.Activity {
+  {
+    sport: "cycling",
+    sub_sport: "road",
+    start_time: 0L,
+    points,
+    laps: [],
+    device_distance_m: dist,
+    elapsed_s: timer,
+    timer_s: timer,
+    moving_s: timer,
+    device_ascent_m: 0.0,
+    device_descent_m: 0.0,
+    avg_hr: None,
+    max_hr: None,
+  }
+}
+
+///|
+test "P0-3: single km split interpolated" {
+  let m = @metrics.compute(
+    act_of([pt(0L, 0.0), pt(10L, 1000.0)], 1000.0, 10.0),
+    [],
+    1,
+  )
+  assert_eq(m.splits.length(), 1)
+  assert_eq(m.splits[0].time_s, 10L)
+  assert_eq(m.split_basis, "elapsed")
+}
+
+///|
+test "P0-3: multi-km jump gets distinct interpolated times" {
+  let m = @metrics.compute(
+    act_of([pt(0L, 0.0), pt(30L, 3000.0)], 3000.0, 30.0),
+    [],
+    1,
+  )
+  assert_eq(m.splits.length(), 3)
+  assert_eq(m.splits[0].time_s, 10L)
+  assert_eq(m.splits[1].time_s, 10L)
+  assert_eq(m.splits[2].time_s, 10L)
+}
+
+///|
+test "P0-3: trimmed track does not backfill leading kilometres" {
+  let m = @metrics.compute(
+    act_of([pt(30L, 3000.0), pt(40L, 4000.0)], 4000.0, 40.0),
+    [],
+    1,
+  )
+  assert_eq(m.splits.length(), 1)
+  assert_eq(m.splits[0].index, 4)
+  assert_eq(m.splits[0].time_s, 10L)
+}

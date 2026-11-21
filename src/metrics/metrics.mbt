@@ -58,6 +58,7 @@ pub(all) struct Metrics {
   computed_ascent_m : Double
   hr_zones : Array[ZoneTime]
   splits : Array[Split]
+  split_basis : String
 }
 
 ///|
@@ -188,28 +189,48 @@ fn hr_zones(
 }
 
 ///|
-fn splits(points : Array[@model.TrackPoint], start : Int64) -> Array[Split] {
+fn round_i64(x : Double) -> Int64 {
+  @math.floor(x + 0.5).to_int64()
+}
+
+///|
+// Per-km splits with linear interpolation between adjacent valid points.
+// Starts at the first valid distance (so a trimmed track does not backfill
+// kilometres 1..N), and uses the previous *boundary* time as the next split's
+// start. Splits are elapsed-time (wall clock) basis: they include auto-pause;
+// see split_basis and docs/metrics.md.
+fn splits(points : Array[@model.TrackPoint]) -> Array[Split] {
   let out : Array[Split] = []
-  let mut last_km = 0
-  let mut last_ts = start
+  let mut initialized = false
+  let mut prev_d = 0.0
+  let mut prev_t = 0L
+  let mut next_km = 0
+  let mut last_boundary_t = 0L
   for p in points {
     match p.distance_m {
-      Some(d) => {
-        let km = @math.floor(d / 1000.0).to_int()
-        if km > last_km {
-          let mut k = last_km + 1
-          while k <= km {
+      Some(d) =>
+        if !initialized {
+          prev_d = d
+          prev_t = p.timestamp
+          next_km = @math.floor(d / 1000.0).to_int() + 1
+          last_boundary_t = p.timestamp
+          initialized = true
+        } else if d > prev_d {
+          while next_km.to_double() * 1000.0 <= d {
+            let ratio = (next_km.to_double() * 1000.0 - prev_d) / (d - prev_d)
+            let boundary_t = prev_t +
+              round_i64(ratio * (p.timestamp - prev_t).to_double())
             out.push({
-              index: k,
-              end_distance_m: k.to_double() * 1000.0,
-              time_s: p.timestamp - last_ts,
+              index: next_km,
+              end_distance_m: next_km.to_double() * 1000.0,
+              time_s: boundary_t - last_boundary_t,
             })
-            k = k + 1
+            last_boundary_t = boundary_t
+            next_km = next_km + 1
           }
-          last_ts = p.timestamp
-          last_km = km
+          prev_d = d
+          prev_t = p.timestamp
         }
-      }
       None => ()
     }
   }
@@ -250,7 +271,8 @@ pub fn compute(
     device_descent_m: act.device_descent_m,
     computed_ascent_m: computed_ascent(alts, ascent_window),
     hr_zones: hr_zones(act.points, hr_bounds),
-    splits: splits(act.points, act.start_time),
+    splits: splits(act.points),
+    split_basis: "elapsed",
   }
 } ///|
 

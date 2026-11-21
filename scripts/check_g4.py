@@ -13,6 +13,7 @@ Run with --self-test to confirm the comparator detects a deliberate mismatch.
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -84,16 +85,30 @@ def reference(path):
             idx = sum(1 for x in BOUNDS if a["hr"] >= x)
             secs[idx] += b["ts"] - a["ts"]
     splits = []
-    last_km = 0
-    last_ts = ses[2]
+    initialized = False
+    prev_d = 0.0
+    prev_t = 0
+    next_km = 0
+    last_b = 0
     for p in pts:
-        if p["dist"] is not None:
-            km = int(p["dist"] // 1000)
-            if km > last_km:
-                for k in range(last_km + 1, km + 1):
-                    splits.append({"index": k, "end_distance_m": k * 1000.0, "time_s": p["ts"] - last_ts})
-                last_ts = p["ts"]
-                last_km = km
+        d = p["dist"]
+        if d is None:
+            continue
+        if not initialized:
+            prev_d = d
+            prev_t = p["ts"]
+            next_km = int(d // 1000) + 1
+            last_b = p["ts"]
+            initialized = True
+        elif d > prev_d:
+            while next_km * 1000 <= d:
+                ratio = (next_km * 1000 - prev_d) / (d - prev_d)
+                b = prev_t + int(math.floor(ratio * (p["ts"] - prev_t) + 0.5))
+                splits.append({"index": next_km, "end_distance_m": next_km * 1000.0, "time_s": b - last_b})
+                last_b = b
+                next_km += 1
+            prev_d = d
+            prev_t = p["ts"]
     timer = ses[8] / 1000.0
     return {
         "device_distance_m": ses[9] / 100.0,
