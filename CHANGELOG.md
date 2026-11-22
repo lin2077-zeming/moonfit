@@ -3,6 +3,53 @@
 All notable changes to this module are recorded here. The format follows
 Keep a Changelog, and the version numbers follow semantic versioning.
 
+## 0.2.0
+
+### Added
+
+- `redact --strip-hr` invalidates heart-rate fields (record/session/lap) and
+  `--report <path>` writes a machine-readable JSON list of what changed
+  (serial_zeroed, lat_shifted, lon_shifted, hr_stripped, trimmed_records,
+  fields_changed, lat_delta, lon_delta). `redact_ex` returns the report alongside
+  the bytes; head/tail trim remains an optional, tested capability.
+- `diff` reports the bounding-box defect B1 as `swc_zero` and
+  `ne_swc_contradiction`; `model.Activity` carries `swc_lat`/`swc_long`/`nec_lat`/
+  `nec_long` read from session fields 31/32/29/30. Gate G5 compares these against
+  the independent reference.
+- `dump` emits `ts_offset` (the raw compressed 5-bit offset, null when absent)
+  alongside `ts`.
+- `metrics.gps_avg_speed_mps` cross-check field; `docs/metrics.md` documents the
+  elapsed split basis.
+- New gates: `check_json` (JSON validity) and `check_notices` (runtime-dependency
+  attribution); `check_boundaries` detects prefix-subset scope drift;
+  `smoke_cli` covers bounds/window/trim usage errors.
+
+### Changed
+
+- `dump` `ts` is now the absolute reconstructed timestamp (was the raw offset).
+- `model` prefers `enhanced_altitude`(78)/`enhanced_speed`(73) over the base
+  fields; `sub_sport` maps 3=trail, 11=cyclocross and unknown codes to `other`.
+- TCX numeric fields parse strictly (malformed/NaN/Infinity raise `Malformed`,
+  exit 2); timestamps honour `Z`/`+hh:mm`/`-hh:mm` offsets; multi-lap `max_hr` is
+  the max over laps and `avg_hr` the timer-weighted mean; a lap missing
+  distance/time falls back to its trackpoints.
+- `metrics` per-km splits use linear interpolation with a trim-aware start and
+  bounded generation (`splits_truncated`); `avg_speed`/`avg_pace` use device
+  distance over timer time.
+- `redact` uses per-message effective endianness across local-type redefinition.
+- Multi-session FIT and multi-Activity TCX are rejected with typed errors instead
+  of being silently merged.
+- `bounds`/`window`/`trim` arguments are validated (usage errors exit 2).
+
+### Fixed
+
+- Haversine clamps its `a` term to [0,1] so near-antipodal points stay finite.
+- `model.track_point` uses the reconstructed compressed timestamp.
+- Unified JSON escaping (control characters, quotes); non-finite numbers become
+  `null` across dump/tcx/metrics/diff.
+- `docs/boundaries.md` no longer lists delivered capabilities as limitations;
+  `THIRD_PARTY_NOTICES.md` attributes `Milky2018/xml` and `moonbitlang/x`.
+
 ## 0.1.0
 
 ### Added
