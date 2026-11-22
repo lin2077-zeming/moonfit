@@ -27,7 +27,7 @@ extracts FIT fields into native units with invalid-as-None.
 - **`split_basis` is `"elapsed"`**: split times are wall-clock and therefore
   **include auto-pause**. `sum(splits.time_s)` approximates elapsed time up to the
   last full kilometre, NOT `timer_s`. This is a deliberate, documented choice
-  (audit P0-3 scheme B); pause-subtracted splits are a possible future extension.
+  (audit P0-3 scheme B); pause-subtracted splits are out of scope for this release.
 
 ## Ascent
 - `device_ascent_m` / `device_descent_m`: session totals.
