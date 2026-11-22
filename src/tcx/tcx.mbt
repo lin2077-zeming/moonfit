@@ -135,30 +135,54 @@ fn days_from_civil(y : Int64, m : Int64, d : Int64) -> Int64 {
 }
 
 ///|
-// Parse "YYYY-MM-DDThh:mm:ss[.fff]Z" to FIT-epoch seconds.
+fn str_slice(s : String, a : Int32, b : Int32) -> String {
+  let mut out = ""
+  let mut i = 0
+  for c in s {
+    if i >= a && i < b {
+      out = out + c.to_string()
+    }
+    i = i + 1
+  }
+  out
+}
+
+///|
+// Parse "YYYY-MM-DDThh:mm:ss[.fff](Z|+hh:mm|-hh:mm)" to FIT-epoch seconds (UTC).
 fn parse_iso(s : String) -> Int64 {
   if s.length() < 19 {
     return 0L
   }
-  let sub = fn(a : Int32, b : Int32) -> String {
-    let mut out = ""
-    let mut i = 0
-    for c in s {
-      if i >= a && i < b {
-        out = out + c.to_string()
-      }
-      i = i + 1
-    }
-    out
-  }
-  let y = to_int(sub(0, 4))
-  let mo = to_int(sub(5, 7))
-  let d = to_int(sub(8, 10))
-  let h = to_int(sub(11, 13))
-  let mi = to_int(sub(14, 16))
-  let se = to_int(sub(17, 19))
+  let y = to_int(str_slice(s, 0, 4))
+  let mo = to_int(str_slice(s, 5, 7))
+  let d = to_int(str_slice(s, 8, 10))
+  let h = to_int(str_slice(s, 11, 13))
+  let mi = to_int(str_slice(s, 14, 16))
+  let se = to_int(str_slice(s, 17, 19))
   let unix = days_from_civil(y, mo, d) * 86400L + h * 3600L + mi * 60L + se
-  unix - 631065600L
+  // Suffix after position 19 is "Z", ".fffZ", or a +/-hh:mm offset (possibly
+  // after a fraction). A +/- offset denotes local time; subtract it for UTC.
+  let suffix = str_slice(s, 19, s.length())
+  let mut sign = 0L
+  let mut sign_pos = -1
+  let mut k = 0
+  for c in suffix {
+    if c == '+' {
+      sign = 1L
+      sign_pos = k
+    } else if c == '-' {
+      sign = -1L
+      sign_pos = k
+    }
+    k = k + 1
+  }
+  let mut offset_s = 0L
+  if sign_pos >= 0 {
+    let oh = to_int(str_slice(suffix, sign_pos + 1, sign_pos + 3))
+    let om = to_int(str_slice(suffix, sign_pos + 4, sign_pos + 6))
+    offset_s = sign * (oh * 3600L + om * 60L)
+  }
+  unix - 631065600L - offset_s
 }
 
 ///|
@@ -192,8 +216,11 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
   let points : Array[@model.TrackPoint] = []
   let laps : Array[@model.Lap] = []
   let mut lap_start = 0L
-  let mut lap_time = 0.0
-  let mut lap_dist = 0.0
+  let mut lap_time_opt : Double? = None
+  let mut lap_dist_opt : Double? = None
+  let mut lap_first_ts : Int64? = None
+  let mut lap_last_ts : Int64? = None
+  let mut lap_last_dist : Double? = None
   let mut lap_avghr : Int32? = None
   let mut lap_maxhr : Int32? = None
   let mut tp_time = 0L
@@ -231,8 +258,11 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
                 None => ""
               },
             )
-            lap_time = 0.0
-            lap_dist = 0.0
+            lap_time_opt = None
+            lap_dist_opt = None
+            lap_first_ts = None
+            lap_last_ts = None
+            lap_last_dist = None
             lap_avghr = None
             lap_maxhr = None
           }
@@ -265,19 +295,44 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
               cadence: tp_cad,
               temperature: None,
             })
+            if lap_first_ts == None {
+              lap_first_ts = Some(tp_time)
+            }
+            lap_last_ts = Some(tp_time)
+            match tp_dist {
+              Some(d) => lap_last_dist = Some(d)
+              None => ()
+            }
             in_tp = false
           }
-          "Lap" =>
+          "Lap" => {
+            let ldist = match lap_dist_opt {
+              Some(d) => d
+              None =>
+                match lap_last_dist {
+                  Some(d) => d
+                  None => 0.0
+                }
+            }
+            let ltime = match lap_time_opt {
+              Some(t) => t
+              None =>
+                match (lap_first_ts, lap_last_ts) {
+                  (Some(a), Some(b)) => (b - a).to_double()
+                  _ => 0.0
+                }
+            }
             laps.push({
               start_time: lap_start,
-              elapsed_s: lap_time,
-              timer_s: lap_time,
-              distance_m: lap_dist,
+              elapsed_s: ltime,
+              timer_s: ltime,
+              distance_m: ldist,
               ascent_m: 0.0,
               descent_m: 0.0,
               avg_hr: lap_avghr,
               max_hr: lap_maxhr,
             })
+          }
           _ => ()
         }
         let _ = stack.pop()
@@ -308,8 +363,8 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
             }
           } else {
             match top {
-              "TotalTimeSeconds" => lap_time = parse_time(txt)
-              "DistanceMeters" => lap_dist = parse_dist(txt)
+              "TotalTimeSeconds" => lap_time_opt = Some(parse_time(txt))
+              "DistanceMeters" => lap_dist_opt = Some(parse_dist(txt))
               "Value" =>
                 if parent == "AverageHeartRateBpm" {
                   lap_avghr = Some(parse_i32_strict(txt))
@@ -331,6 +386,34 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
     total_dist = total_dist + l.distance_m
     total_time = total_time + l.timer_s
   }
+  // Multi-lap HR: max over all laps; average weighted by lap timer time.
+  let mut act_maxhr : Int32? = None
+  let mut hr_weight = 0.0
+  let mut hr_time = 0.0
+  for l in laps {
+    match l.max_hr {
+      Some(v) =>
+        act_maxhr = match act_maxhr {
+          Some(m) => Some(if v > m { v } else { m })
+          None => Some(v)
+        }
+      None => ()
+    }
+    match l.avg_hr {
+      Some(v) => {
+        hr_weight = hr_weight + v.to_double() * l.timer_s
+        hr_time = hr_time + l.timer_s
+      }
+      None => ()
+    }
+  }
+  let act_avghr : Int32? = if hr_time > 0.0 {
+    Some((hr_weight / hr_time + 0.5).floor().to_int())
+  } else if laps.length() > 0 {
+    laps[0].avg_hr
+  } else {
+    None
+  }
   let start = if laps.length() > 0 {
     laps[0].start_time
   } else if points.length() > 0 {
@@ -351,16 +434,8 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
       moving_s: total_time,
       device_ascent_m: 0.0,
       device_descent_m: 0.0,
-      avg_hr: if laps.length() > 0 {
-        laps[0].avg_hr
-      } else {
-        None
-      },
-      max_hr: if laps.length() > 0 {
-        laps[0].max_hr
-      } else {
-        None
-      },
+      avg_hr: act_avghr,
+      max_hr: act_maxhr,
     },
     sport_raw,
     sport_nonstandard: nonstandard,

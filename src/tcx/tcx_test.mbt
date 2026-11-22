@@ -114,3 +114,33 @@ fn tcx_two_activities() -> Bytes {
 test "P1-5: multiple TCX Activity elements raise Malformed, not silent merge" {
   assert_true(raises_malformed(tcx_two_activities()))
 }
+
+///|
+let tcx_tz : String = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\">\n<Activities><Activity Sport=\"Biking\"><Id>2026-08-03T10:40:06Z</Id><Lap StartTime=\"2026-08-03T10:40:06+08:00\"><TotalTimeSeconds>199.0</TotalTimeSeconds><DistanceMeters>817.03</DistanceMeters><Track><Trackpoint><Time>2026-08-03T10:40:06+08:00</Time></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>"
+
+///|
+let tcx_two_lap : String = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\">\n<Activities><Activity Sport=\"Biking\"><Id>2026-08-03T10:40:06Z</Id><Lap StartTime=\"2026-08-03T10:40:06Z\"><TotalTimeSeconds>100</TotalTimeSeconds><DistanceMeters>1000</DistanceMeters><AverageHeartRateBpm><Value>100</Value></AverageHeartRateBpm><MaximumHeartRateBpm><Value>120</Value></MaximumHeartRateBpm><Track><Trackpoint><Time>2026-08-03T10:40:06Z</Time></Trackpoint></Track></Lap><Lap StartTime=\"2026-08-03T10:41:46Z\"><TotalTimeSeconds>300</TotalTimeSeconds><DistanceMeters>3000</DistanceMeters><AverageHeartRateBpm><Value>140</Value></AverageHeartRateBpm><MaximumHeartRateBpm><Value>160</Value></MaximumHeartRateBpm><Track><Trackpoint><Time>2026-08-03T10:41:46Z</Time></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>"
+
+///|
+let tcx_no_lap_fields : String = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\">\n<Activities><Activity Sport=\"Biking\"><Id>2026-08-03T10:40:06Z</Id><Lap StartTime=\"2026-08-03T10:40:06Z\"><Track><Trackpoint><Time>2026-08-03T10:40:06Z</Time><DistanceMeters>0</DistanceMeters></Trackpoint><Trackpoint><Time>2026-08-03T10:40:50Z</Time><DistanceMeters>500</DistanceMeters></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>"
+
+///|
+test "P1-6: +08:00 timestamp converted to UTC FIT epoch" {
+  let t = @tcx.parse(@utf8.encode(tcx_tz))
+  assert_eq(t.activity.points[0].timestamp, 1154659206L)
+}
+
+///|
+test "P1-6: multi-lap max_hr is max over laps, avg_hr timer-weighted" {
+  let t = @tcx.parse(@utf8.encode(tcx_two_lap))
+  assert_eq(t.activity.laps.length(), 2)
+  assert_eq(t.activity.max_hr, Some(160))
+  assert_eq(t.activity.avg_hr, Some(130))
+}
+
+///|
+test "P1-6: lap missing distance/time falls back to trackpoints" {
+  let t = @tcx.parse(@utf8.encode(tcx_no_lap_fields))
+  assert_eq(t.activity.laps[0].distance_m, 500.0)
+  assert_eq(t.activity.laps[0].timer_s, 44.0)
+}
