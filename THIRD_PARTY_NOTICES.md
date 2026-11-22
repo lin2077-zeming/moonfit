@@ -8,6 +8,8 @@ module.
 | Module | Licence | Use |
 |---|---|---|
 | `moonbitlang/core` | Apache-2.0 | Language core. `core/argparse` provides command-line parsing and `core/env` provides process arguments and exit. |
+| `Milky2018/xml` | Apache-2.0 | Streaming XML pull parser used by `src/tcx` to decode TCX. |
+| `moonbitlang/x` | Apache-2.0 | `x/fs` file I/O used by the native CLI to read and write activity files. |
 
 ## Development-only tooling
 

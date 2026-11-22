@@ -120,6 +120,9 @@ jobs:
       - name: Verify docs make no undelivered or unmeasurable promises
         run: python3 scripts/check_docs.py
 
+      - name: Verify runtime dependencies are attributed
+        run: python3 scripts/check_notices.py
+
       - name: Smoke-test CLI exit codes
         run: python3 scripts/smoke_cli.py
 
