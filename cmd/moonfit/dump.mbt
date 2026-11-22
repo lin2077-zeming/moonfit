@@ -112,22 +112,44 @@ fn to_int_def(s : String, def : Int32) -> Int32 {
 }
 
 ///|
-fn parse_bounds(csv : String) -> Array[Int32] {
-  let out : Array[Int32] = []
-  if csv == "" {
-    return out
-  }
+fn parse_bounds(csv : String) -> Array[Int32]? {
+  let items : Array[String] = []
   let mut cur = ""
   for c in csv {
     if c == ',' {
-      out.push(to_int_def(cur, 0))
+      items.push(cur)
       cur = ""
     } else {
       cur = cur + c.to_string()
     }
   }
-  out.push(to_int_def(cur, 0))
-  out
+  items.push(cur)
+  let out : Array[Int32] = []
+  let mut prev = 0
+  for item in items {
+    if item == "" {
+      return None
+    }
+    let v = @string.parse_int(item) catch { _ => return None }
+    if out.length() > 0 && v <= prev {
+      return None
+    }
+    out.push(v)
+    prev = v
+  }
+  if out.length() == 0 {
+    return None
+  }
+  Some(out)
+}
+
+///|
+fn parse_window(s : String) -> Int32? {
+  let w = @string.parse_int(s) catch { _ => return None }
+  if w < 1 {
+    return None
+  }
+  Some(w)
 }
 
 ///|
@@ -137,11 +159,29 @@ fn run_metrics(argv : Array[String]) -> Int32 {
     return 2
   }
   let bounds = if argv.length() > 2 {
-    parse_bounds(argv[2])
+    match parse_bounds(argv[2]) {
+      Some(b) => b
+      None => {
+        eprintln(
+          "moonfit: invalid HR bounds (need strictly increasing integers): \{argv[2]}",
+        )
+        return 2
+      }
+    }
   } else {
     [100, 120, 140, 160]
   }
-  let window = if argv.length() > 3 { to_int_def(argv[3], 5) } else { 5 }
+  let window = if argv.length() > 3 {
+    match parse_window(argv[3]) {
+      Some(w) => w
+      None => {
+        eprintln("moonfit: window must be a positive integer: \{argv[3]}")
+        return 2
+      }
+    }
+  } else {
+    5
+  }
   let data = @fs.read_file_to_bytes(argv[1]) catch {
     @fs.IOError(_) => {
       eprintln("moonfit: cannot read \{argv[1]}")
@@ -286,7 +326,21 @@ fn run_redact(argv : Array[String]) -> Int32 {
     )
     return 2
   }
-  let trim = if pos.length() > 2 { to_int_def(pos[2], 0) } else { 0 }
+  let trim = if pos.length() > 2 {
+    let t = @string.parse_int(pos[2]) catch {
+      _ => {
+        eprintln("moonfit: trim must be a non-negative integer: \{pos[2]}")
+        return 2
+      }
+    }
+    if t < 0 {
+      eprintln("moonfit: trim must be a non-negative integer: \{pos[2]}")
+      return 2
+    }
+    t
+  } else {
+    0
+  }
   let dlat = if pos.length() > 3 {
     to_int_def(pos[3], 600000).to_int64()
   } else {

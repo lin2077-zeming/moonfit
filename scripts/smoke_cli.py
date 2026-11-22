@@ -75,6 +75,11 @@ def cases(version: str):
         (["redact"], 2, lambda o: o == "", lambda e: "needs" in e),
         (["verify"], 2, lambda o: o == "", lambda e: "needs a file" in e),
         (["info"], 2, lambda o: o == "", lambda e: "needs a file" in e),
+        (["metrics", str(CORPUS / "ride-20260803.fit"), "abc,,140"], 2, lambda o: o == "", lambda e: "bounds" in e),
+        (["metrics", str(CORPUS / "ride-20260803.fit"), "160,100"], 2, lambda o: o == "", lambda e: "bounds" in e),
+        (["metrics", str(CORPUS / "ride-20260803.fit"), "100,100"], 2, lambda o: o == "", lambda e: "bounds" in e),
+        (["metrics", str(CORPUS / "ride-20260803.fit"), "100,120", "-1"], 2, lambda o: o == "", lambda e: "window" in e),
+        (["redact", "in.fit", "out.fit", "-1"], 2, lambda o: o == "", lambda e: "trim" in e),
     ]
 
 
