@@ -26,17 +26,19 @@ redacted `.fit` byte for byte, compared by SHA-256. This is the strongest
 statement the project makes about its decoder, and it is checkable without
 reference to any other implementation.
 
-**G3 — field-level golden diff.** Every decoded field of every corpus file
-equals the value an independent decoder reports for the same field, captured as
-a checked-in golden snapshot.
+**G3 — field-level differential check.** Every decoded field of every corpus
+file equals the value an independent decoder (fitparse) reports for the same
+field, computed live at gate time rather than read from a checked-in snapshot.
 
-**G4 — derived metric golden diff.** Distances, durations, pace, splits and
-ascent equal the output of an independent script built on Karney geodesics,
-with each tolerance written as a constant alongside its justification.
+**G4 — derived metric live-reference diff.** Distances, durations, pace,
+splits and ascent equal the output of an independent script built on fitparse
+and Karney geodesics, computed live at gate time, with each tolerance written as
+a constant alongside its justification.
 
-**G5 — divergence report golden diff.** The FIT to TCX divergence report equals
-a checked-in snapshot, including the structural laws and the device defects
-recorded in `docs/spec-notes.md`.
+**G5 — divergence report live-reference diff.** The FIT to TCX divergence
+report equals a live reference computed from fitparse (FIT) and ElementTree
+(TCX), including the structural laws and the device defects recorded in
+`docs/spec-notes.md`.
 
 **G6 — robustness.** Truncated input, a broken checksum, an over-long field, a
 zero-length message and a data record with no preceding definition each produce
@@ -44,8 +46,8 @@ a typed error rather than a panic or a non-terminating loop. A single-byte
 mutation sweep across the corpus is rejected in full.
 
 **G7 — the ruler.** Each unit conversion equals a hardcoded constant taken from
-the FIT specification or from a cross-format corpus comparison. The tooling
-that generates golden files has its own tests, run before its output is used.
+the FIT specification or from a cross-format corpus comparison. The reference tooling
+has its own self-tests (`--self-test`), run before its output is used.
 
 **G8 — parameter space coverage.** Every message and every field observed in
 the corpus has a recorded disposition. A field that is silently dropped fails
@@ -56,7 +58,7 @@ whole space.
 
 - Expected values are constants. A test never calls the code under test to
   produce its own expectation.
-- Tooling that generates a golden file is tested before its output is trusted.
+- Reference tooling is self-tested before its output is trusted.
 - A parameter sweep replaces single-point checks. One clip start that happens to
   land on a frame boundary hides a systematic off-by-one; sweeping the space is
   what exposes it.
