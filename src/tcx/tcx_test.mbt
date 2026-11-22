@@ -102,3 +102,15 @@ test "P1-2: malformed distance value raises Malformed, not 0" {
     raises_malformed(tcx_tp_field("<DistanceMeters>abc</DistanceMeters>")),
   )
 }
+
+///|
+fn tcx_two_activities() -> Bytes {
+  @utf8.encode(
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\">\n<Activities><Activity Sport=\"Biking\"><Id>2026-08-03T10:40:06Z</Id><Lap StartTime=\"2026-08-03T10:40:06Z\"><TotalTimeSeconds>199.0</TotalTimeSeconds><DistanceMeters>817.03</DistanceMeters><Track><Trackpoint><Time>2026-08-03T10:40:06Z</Time></Trackpoint></Track></Lap></Activity><Activity Sport=\"Running\"><Id>2026-08-03T11:40:06Z</Id><Lap StartTime=\"2026-08-03T11:40:06Z\"><TotalTimeSeconds>100.0</TotalTimeSeconds><DistanceMeters>500.0</DistanceMeters><Track><Trackpoint><Time>2026-08-03T11:40:06Z</Time></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>",
+  )
+}
+
+///|
+test "P1-5: multiple TCX Activity elements raise Malformed, not silent merge" {
+  assert_true(raises_malformed(tcx_two_activities()))
+}

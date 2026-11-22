@@ -260,7 +260,12 @@ pub fn from_fit(msgs : Array[@fit.Message]) -> Activity raise @fit.FitError {
   let laps : Array[Lap] = []
   for m in data {
     match m.global {
-      18 => if session == None { session = Some(m) }
+      18 =>
+        if session == None {
+          session = Some(m)
+        } else {
+          raise @fit.FitError::Truncated("multiple sessions are not supported")
+        }
       20 => points.push(track_point(m))
       19 => laps.push(lap(m))
       _ => ()

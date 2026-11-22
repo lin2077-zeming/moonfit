@@ -125,3 +125,46 @@ test "P1-3: sub_sport canonical names (3=trail, 11=cyclocross, unknown=other)" {
     "other",
   )
 }
+
+///|
+fn two_session_fit() -> Bytes {
+  let body : Array[Byte] = []
+  for x in [0x40, 0, 0, 18, 0, 2, 5, 1, 0x00, 6, 1, 0x00] {
+    body.push(bb(x))
+  }
+  body.push(bb(0x00))
+  body.push(bb(2))
+  body.push(bb(7))
+  body.push(bb(0x00))
+  body.push(bb(2))
+  body.push(bb(7))
+  let hdr : Array[Byte] = [bb(14), bb(0x10), bb(0xEA), bb(0x07)]
+  u32le(hdr, body.length())
+  for x in [0x2E, 0x46, 0x49, 0x54] {
+    hdr.push(bb(x))
+  }
+  u16le(hdr, @fit.crc16(Bytes::from_array(hdr).clamped_view()))
+  let full : Array[Byte] = []
+  for x in hdr {
+    full.push(x)
+  }
+  for x in body {
+    full.push(x)
+  }
+  u16le(full, @fit.crc16(Bytes::from_array(full).clamped_view()))
+  Bytes::from_array(full)
+}
+
+///|
+fn fit_raises_truncated(msgs : Array[@fit.Message]) -> Bool {
+  let _ = @model.from_fit(msgs) catch {
+    @fit.Truncated(_) => return true
+    _ => return false
+  }
+  false
+}
+
+///|
+test "P1-5: multiple FIT sessions raise a typed error, not silent merge" {
+  assert_true(fit_raises_truncated(@fit.parse_messages(two_session_fit())))
+}

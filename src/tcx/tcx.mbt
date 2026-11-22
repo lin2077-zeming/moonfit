@@ -205,17 +205,25 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
   let mut tp_hr : Int32? = None
   let mut tp_cad : Int32? = None
   let mut in_tp = false
+  let mut activity_count = 0
   for e in events {
     match e.kind {
       @xml.Start(el) => {
         let ln = local_name(el.name)
         stack.push(ln)
         match ln {
-          "Activity" =>
+          "Activity" => {
+            activity_count = activity_count + 1
+            if activity_count > 1 {
+              raise TcxError::Malformed(
+                "multiple Activity elements are not supported",
+              )
+            }
             sport_raw = match el.get("Sport") {
               Some(v) => v
               None => ""
             }
+          }
           "Lap" => {
             lap_start = parse_iso(
               match el.get("StartTime") {
