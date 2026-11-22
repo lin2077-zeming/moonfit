@@ -220,3 +220,61 @@ test "P0-5: normal track is not truncated" {
   assert_true(!m.splits_truncated)
   assert_eq(m.splits.length(), 3)
 }
+
+///|
+test "P1-1: haversine clamped at antipodes stays finite" {
+  // Exact antipodes: raw_a can overshoot 1.0 in floating point; without a
+  // clamp, (1 - a).sqrt() is sqrt(negative) = NaN.
+  let d = @metrics.haversine(45.0, 0.0, -45.0, 180.0)
+  assert_true(!(d != d))
+  assert_true((d - 20015086.79602057).abs() < 0.01)
+  // Near-antipodal coordinates a FIT file can legally encode.
+  let d2 = @metrics.haversine(0.00699, 179.9999998, -0.00699, -0.0000002)
+  assert_true(!(d2 != d2))
+  assert_true(d2 > 0.0)
+}
+
+///|
+test "P1-1: gps_distance_m finite for near-antipodal track points" {
+  let act : @model.Activity = {
+    sport: "cycling",
+    sub_sport: "road",
+    start_time: 0L,
+    points: [
+      {
+        timestamp: 0L,
+        lat: Some(0.00699),
+        lon: Some(179.9999998),
+        altitude_m: None,
+        distance_m: Some(0.0),
+        speed_mps: None,
+        heart_rate: None,
+        cadence: None,
+        temperature: None,
+      },
+      {
+        timestamp: 10L,
+        lat: Some(-0.00699),
+        lon: Some(-0.0000002),
+        altitude_m: None,
+        distance_m: Some(1000.0),
+        speed_mps: None,
+        heart_rate: None,
+        cadence: None,
+        temperature: None,
+      },
+    ],
+    laps: [],
+    device_distance_m: 1000.0,
+    elapsed_s: 10.0,
+    timer_s: 10.0,
+    moving_s: 10.0,
+    device_ascent_m: 0.0,
+    device_descent_m: 0.0,
+    avg_hr: None,
+    max_hr: None,
+  }
+  let m = @metrics.compute(act, [120, 140], 1)
+  assert_true(!(m.gps_distance_m != m.gps_distance_m))
+  assert_true(m.gps_distance_m > 0.0)
+}

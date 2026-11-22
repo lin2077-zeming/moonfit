@@ -85,8 +85,11 @@ pub fn haversine(
   let dlon = (lon2 - lon1) * deg_to_rad
   let s1 = @math.sin(dlat / 2.0)
   let s2 = @math.sin(dlon / 2.0)
-  let a = s1 * s1 +
+  let raw_a = s1 * s1 +
     @math.cos(lat1 * deg_to_rad) * @math.cos(lat2 * deg_to_rad) * s2 * s2
+  // Clamp to [0, 1]: near antipodes raw_a can overshoot 1.0 (or undershoot
+  // 0.0) in floating point, which would make (1 - a).sqrt() NaN (P1-1).
+  let a = if raw_a < 0.0 { 0.0 } else if raw_a > 1.0 { 1.0 } else { raw_a }
   let c = 2.0 * @math.atan2(a.sqrt(), (1.0 - a).sqrt())
   earth_radius_m * c
 }
