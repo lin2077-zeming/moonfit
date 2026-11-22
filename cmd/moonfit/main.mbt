@@ -1,5 +1,5 @@
 ///|
-pub let moonfit_version : String = "0.2.0"
+pub let moonfit_version : String = "0.3.0"
 
 ///|
 fn build_command() -> @argparse.Command {

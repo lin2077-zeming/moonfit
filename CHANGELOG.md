@@ -3,6 +3,31 @@
 All notable changes to this module are recorded here. The format follows
 Keep a Changelog, and the version numbers follow semantic versioning.
 
+## 0.3.0
+
+### Added
+
+- `moonfit tcx` emits a per-point `points` array (ts/lat/lon/alt/dist/speed/hr/cad)
+  alongside the summary, so callers and the TCX gate can inspect every trackpoint.
+- `check_json` and `check_corpus_integrity` gain `--self-test` modes (strict-JSON
+  ruler rejects NaN/Infinity; sha256 known-vector and flipped-byte detection), so
+  every CI gate self-tests.
+
+### Changed
+
+- Gate G4/G5 oracles are computed independently: G5 derives first/last timestamp
+  equality from fitparse and stdlib datetime (no hardcoded True); G4 ascent uses a
+  prefix-sum moving average and HR zones use bisect bucketing.
+- The TCX gate compares every trackpoint's lat/lon/alt/speed/HR/ts against the
+  independent XML parse; the redact gate verifies every lat/lon equals
+  wrap(original + delta), serials are zeroed, session swc stays 0, and a
+  little-to-big local-type redefinition shifts correctly.
+- CI runs each gate's `--self-test` before the gate itself; the coverage step is
+  labelled informational (not a gate).
+- `docs/testing.md` describes live references and self-tests rather than
+  checked-in golden snapshots; `docs/metrics.md` states pause-subtracted splits
+  are out of scope for this release.
+
 ## 0.2.0
 
 ### Added
