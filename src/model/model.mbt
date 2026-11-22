@@ -211,9 +211,15 @@ fn track_point(m : @fit.DataMessage) -> TrackPoint {
     },
     lat: degrees_opt(m, 0),
     lon: degrees_opt(m, 1),
-    altitude_m: altitude_opt(m, 2),
+    altitude_m: match altitude_opt(m, 78) {
+      Some(v) => Some(v)
+      None => altitude_opt(m, 2)
+    },
     distance_m: metres_opt(m, 5),
-    speed_mps: speed_opt(m, 6),
+    speed_mps: match speed_opt(m, 73) {
+      Some(v) => Some(v)
+      None => speed_opt(m, 6)
+    },
     heart_rate: i32_opt(m, 3),
     cadence: i32_opt(m, 4),
     temperature: i32_opt(m, 13),
