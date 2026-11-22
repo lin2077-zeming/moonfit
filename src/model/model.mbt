@@ -180,11 +180,21 @@ fn sub_sport_name(code : Int64) -> String {
   match code {
     0L => "generic"
     1L => "treadmill"
+    2L => "street"
+    3L => "trail"
+    4L => "track"
+    5L => "spin"
     6L => "indoor_cycling"
     7L => "road"
     8L => "mountain"
-    11L => "trail"
-    _ => "sub_sport(\{code})"
+    9L => "downhill"
+    10L => "recumbent"
+    11L => "cyclocross"
+    12L => "hand_cycling"
+    13L => "track_cycling"
+    14L => "indoor_rowing"
+    15L => "elliptical"
+    _ => "other"
   }
 }
 

@@ -78,3 +78,50 @@ test "P0-1: model uses reconstructed compressed timestamp" {
   assert_eq(act.points[0].timestamp, 1000L)
   assert_eq(act.points[1].timestamp, 1010L)
 }
+
+///|
+fn sub_sport_fit(code : Int32) -> Bytes {
+  let body : Array[Byte] = []
+  // session local0: sport(5,enum) sub_sport(6,enum)
+  for x in [0x40, 0, 0, 18, 0, 2, 5, 1, 0x00, 6, 1, 0x00] {
+    body.push(bb(x))
+  }
+  body.push(bb(0x00))
+  body.push(bb(2))
+  body.push(bb(code))
+  let hdr : Array[Byte] = [bb(14), bb(0x10), bb(0xEA), bb(0x07)]
+  u32le(hdr, body.length())
+  for x in [0x2E, 0x46, 0x49, 0x54] {
+    hdr.push(bb(x))
+  }
+  u16le(hdr, @fit.crc16(Bytes::from_array(hdr).clamped_view()))
+  let full : Array[Byte] = []
+  for x in hdr {
+    full.push(x)
+  }
+  for x in body {
+    full.push(x)
+  }
+  u16le(full, @fit.crc16(Bytes::from_array(full).clamped_view()))
+  Bytes::from_array(full)
+}
+
+///|
+test "P1-3: sub_sport canonical names (3=trail, 11=cyclocross, unknown=other)" {
+  assert_eq(
+    @model.from_fit(@fit.parse_messages(sub_sport_fit(3))).sub_sport,
+    "trail",
+  )
+  assert_eq(
+    @model.from_fit(@fit.parse_messages(sub_sport_fit(11))).sub_sport,
+    "cyclocross",
+  )
+  assert_eq(
+    @model.from_fit(@fit.parse_messages(sub_sport_fit(7))).sub_sport,
+    "road",
+  )
+  assert_eq(
+    @model.from_fit(@fit.parse_messages(sub_sport_fit(200))).sub_sport,
+    "other",
+  )
+}
