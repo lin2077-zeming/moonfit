@@ -45,7 +45,26 @@ def locate():
         p=BUILD/n
         if p.exists(): return p
     f=sorted(BUILD.glob("moonfit*")); return f[0] if f else None
-def main():
+def _strict_constant(x):
+    raise ValueError(f"non-finite JSON constant: {x}")
+def self_test():
+    print("check_json self-test (R4: verify the ruler first)")
+    ok=True
+    # stdlib json.loads accepts NaN/Infinity by default; the strict ruler must not.
+    for bad in ('{"x": NaN}','{"x": Infinity}','{"x": -Infinity}'):
+        try:
+            json.loads(bad, parse_constant=_strict_constant); ok=False; print(f"  FAIL strict parser accepted {bad}")
+        except Exception:
+            print(f"  ok   strict parser rejects bare {bad}")
+    try:
+        d=json.loads('{"x": "a\\u0008b"}')
+        good=d["x"]=="a\x08b"; ok=ok and good
+        print(f"  {'ok  ' if good else 'FAIL'} escaped control char round-trips")
+    except Exception as e:
+        ok=False; print(f"  FAIL escaped control char: {e}")
+    return 0 if ok else 1
+def main(argv):
+    if "--self-test" in argv: return self_test()
     exe=locate()
     if exe is None: print("::error::CLI not built"); return 1
     if os.name!="nt" and not os.access(exe,os.X_OK): exe.chmod(exe.stat().st_mode|0o111)
@@ -98,4 +117,4 @@ def main():
     print("JSON gate OK: dump/tcx outputs are valid JSON (control/quote escaped; NaN rejected or null).")
     return 0
 if __name__=="__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

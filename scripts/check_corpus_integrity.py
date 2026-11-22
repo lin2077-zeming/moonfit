@@ -46,7 +46,27 @@ def git_attributes() -> dict[str, str]:
     return attrs
 
 
-def main() -> int:
+def self_test() -> int:
+    print("check_corpus_integrity self-test (R4: verify the ruler first)")
+    import tempfile
+    ok = True
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "f.bin"
+        p.write_bytes(b"abc")
+        known = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        good = sha256(p) == known
+        ok = ok and good
+        print(f"  {'ok  ' if good else 'FAIL'} sha256 matches the known 'abc' vector")
+        p.write_bytes(b"abd")
+        good2 = sha256(p) != known
+        ok = ok and good2
+        print(f"  {'ok  ' if good2 else 'FAIL'} a flipped byte changes the digest")
+    return 0 if ok else 1
+
+
+def main(argv) -> int:
+    if "--self-test" in argv:
+        return self_test()
     if not SUMS.exists():
         print(f"::error file={SUMS}::{SUMS.name} is missing")
         return 1
@@ -103,4 +123,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

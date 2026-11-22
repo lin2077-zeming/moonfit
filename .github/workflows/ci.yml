@@ -43,7 +43,9 @@ jobs:
       # fails loudly instead of silently invalidating the G2 round-trip gate.
       # ------------------------------------------------------------------
       - name: Verify corpus bytes are unmodified (Gate 0)
-        run: python3 scripts/check_corpus_integrity.py
+        run: |
+          python3 scripts/check_corpus_integrity.py --self-test
+          python3 scripts/check_corpus_integrity.py
 
       - name: Check formatting
         run: moon fmt --check
@@ -72,30 +74,48 @@ jobs:
         run: python3 -m pip install --quiet fitparse geographiclib
 
       - name: Gate G3 - differential decode vs fitparse
-        run: python3 scripts/check_g3.py
+        run: |
+          python3 scripts/check_g3.py --self-test
+          python3 scripts/check_g3.py
 
       - name: Gate G2 - byte-exact round trip over corpus
-        run: python3 scripts/check_g2.py
+        run: |
+          python3 scripts/check_g2.py --self-test
+          python3 scripts/check_g2.py
 
       - name: Gate G4 - derived metrics vs independent reference
-        run: python3 scripts/check_g4.py
+        run: |
+          python3 scripts/check_g4.py --self-test
+          python3 scripts/check_g4.py
 
       - name: TCX decode vs independent XML parse
-        run: python3 scripts/check_tcx.py
+        run: |
+          python3 scripts/check_tcx.py --self-test
+          python3 scripts/check_tcx.py
 
       - name: Gate G5 - FIT/TCX divergence vs independent reference
-        run: python3 scripts/check_g5.py
+        run: |
+          python3 scripts/check_g5.py --self-test
+          python3 scripts/check_g5.py
 
       - name: Redaction idempotence + trim gate
-        run: python3 scripts/check_redact.py
+        run: |
+          python3 scripts/check_redact.py --self-test
+          python3 scripts/check_redact.py
 
       - name: Gate G6 - robustness / mutation rejection
-        run: python3 scripts/check_g6.py
+        run: |
+          python3 scripts/check_g6.py --self-test
+          python3 scripts/check_g6.py
 
       - name: Gate G8 - per-field disposition coverage
-        run: python3 scripts/check_g8.py
+        run: |
+          python3 scripts/check_g8.py --self-test
+          python3 scripts/check_g8.py
       - name: JSON output safety gate
-        run: python3 scripts/check_json.py
+        run: |
+          python3 scripts/check_json.py --self-test
+          python3 scripts/check_json.py
 
       - name: Test native target
         run: moon test --target native --deny-warn
@@ -115,16 +135,26 @@ jobs:
           git diff --exit-code
 
       - name: Verify declared scope matches implementation
-        run: python3 scripts/check_boundaries.py
+        run: |
+          python3 scripts/check_boundaries.py --self-test
+          python3 scripts/check_boundaries.py
 
       - name: Verify docs make no undelivered or unmeasurable promises
-        run: python3 scripts/check_docs.py
+        run: |
+          python3 scripts/check_docs.py --self-test
+          python3 scripts/check_docs.py
 
       - name: Verify runtime dependencies are attributed
-        run: python3 scripts/check_notices.py
+        run: |
+          python3 scripts/check_notices.py --self-test
+          python3 scripts/check_notices.py
 
       - name: Smoke-test CLI exit codes
-        run: python3 scripts/smoke_cli.py
+        run: |
+          python3 scripts/smoke_cli.py --self-test
+          python3 scripts/smoke_cli.py
 
-      - name: Report uncovered lines
+      # Informational only, NOT a gate: coverage is reported but never enforced,
+      # so `|| true` is intentional. Do not describe this as a "coverage gate".
+      - name: Report uncovered lines (informational, not a gate)
         run: moon coverage analyze > uncovered.log || true
