@@ -211,6 +211,14 @@ fn opt_i32_json(v : Int32?) -> String {
 }
 
 ///|
+fn opt_f64_json(v : Double?) -> String {
+  match v {
+    Some(x) => @json.json_double(x)
+    None => "null"
+  }
+}
+
+///|
 fn run_tcx(argv : Array[String]) -> Int32 {
   if argv.length() < 2 {
     eprintln("moonfit: tcx needs a file argument")
@@ -237,6 +245,32 @@ fn run_tcx(argv : Array[String]) -> Int32 {
   }
   let avghr = opt_i32_json(a.avg_hr)
   let maxhr = opt_i32_json(a.max_hr)
+  let mut pj = ""
+  let mut pi = 0
+  for pt in a.points {
+    if pi > 0 {
+      pj = pj + ","
+    }
+    pj = pj +
+      "{\"ts\":" +
+      pt.timestamp.to_string() +
+      ",\"lat\":" +
+      opt_f64_json(pt.lat) +
+      ",\"lon\":" +
+      opt_f64_json(pt.lon) +
+      ",\"alt\":" +
+      opt_f64_json(pt.altitude_m) +
+      ",\"dist\":" +
+      opt_f64_json(pt.distance_m) +
+      ",\"speed\":" +
+      opt_f64_json(pt.speed_mps) +
+      ",\"hr\":" +
+      opt_i32_json(pt.heart_rate) +
+      ",\"cad\":" +
+      opt_i32_json(pt.cadence) +
+      "}"
+    pi = pi + 1
+  }
   println(
     "{\"sport\":" +
     @json.json_string(a.sport) +
@@ -260,7 +294,9 @@ fn run_tcx(argv : Array[String]) -> Int32 {
     first.to_string() +
     ",\"last_ts\":" +
     last.to_string() +
-    "}",
+    ",\"points\":[" +
+    pj +
+    "]}",
   )
   0
 }

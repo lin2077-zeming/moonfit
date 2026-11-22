@@ -16,7 +16,9 @@ Run with --self-test to confirm the gate detects a deliberate corruption.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import struct
 import subprocess
 import sys
 import tempfile
@@ -25,6 +27,59 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "_build" / "native" / "release" / "build" / "cmd" / "moonfit"
 CORPUS = ROOT / "corpus" / "redacted"
+DLAT = 600000
+DLON = -800000
+LAT_FIELDS = {(20, 0), (18, 3), (18, 29), (19, 3), (19, 5)}
+LON_FIELDS = {(20, 1), (18, 4), (18, 30), (19, 4), (19, 6)}
+_CRC_T = [0x0000,0xCC01,0xD801,0x1400,0xF001,0x3C00,0x2800,0xE401,0xA001,0x6C00,0x7800,0xB401,0x5000,0x9C01,0x8801,0x4400]
+
+
+def crc16(b):
+    c = 0
+    for x in b:
+        t = _CRC_T[c & 0xF]; c = ((c >> 4) & 0x0FFF) ^ t ^ _CRC_T[x & 0xF]
+        t = _CRC_T[c & 0xF]; c = ((c >> 4) & 0x0FFF) ^ t ^ _CRC_T[(x >> 4) & 0xF]
+    return c & 0xFFFF
+
+
+def wrap32(v):
+    return ((v + 2**31) % 2**32) - 2**31
+
+
+def dump_msgs(exe, p):
+    out = run(exe, "dump", p).stdout
+    return [json.loads(l) for l in out.splitlines() if l.strip()]
+
+
+def coords(msgs):
+    out = []
+    for m in msgs:
+        for f in m["f"]:
+            key = (m["g"], f["d"])
+            if f["i"] == 0 and (key in LAT_FIELDS or key in LON_FIELDS):
+                out.append((key, f["v"]))
+    return out
+
+
+def serials(msgs):
+    return [f["v"] for m in msgs if m["g"] in (0, 23) for f in m["f"] if f["d"] == 3]
+
+
+def swc(msgs):
+    return [f["v"] for m in msgs if m["g"] == 18 for f in m["f"] if f["d"] in (31, 32)]
+
+
+def redef_fit():
+    body = bytearray()
+    body += bytes([0x41, 0, 0, 20, 0, 2, 0, 4, 0x85, 1, 4, 0x85])
+    body += bytes([0x01]) + struct.pack("<i", 1000000) + struct.pack("<i", 0)
+    body += bytes([0x41, 0, 1, 0, 20, 2, 0, 4, 0x85, 1, 4, 0x85])
+    body += bytes([0x01]) + struct.pack(">i", 2000000) + struct.pack(">i", 0)
+    hdr = bytearray([14, 0x10, 0xEA, 0x07]) + struct.pack("<I", len(body)) + b".FIT"
+    hdr += struct.pack("<H", crc16(hdr))
+    full = hdr + body
+    full += struct.pack("<H", crc16(full))
+    return bytes(full)
 
 
 def locate_cli():
@@ -61,7 +116,16 @@ def self_test(exe):
         run(exe, "redact", src, shifted, 0, 600000, -800000)
         ok = sha(shifted) != sha(src)
         print(f"  {'ok  ' if ok else 'FAIL'} a non-zero shift changes the bytes")
-        return 0 if ok else 1
+        # P2-3: local-type redefinition little->big must still shift correctly.
+        rd = Path(td) / "redef.fit"
+        rd.write_bytes(redef_fit())
+        ro = Path(td) / "redef.out"
+        run(exe, "redact", rd, ro, 0, 600000, -800000)
+        rc = coords(dump_msgs(exe, ro))
+        want = [((20, 0), 1600000), ((20, 1), -800000), ((20, 0), 2600000), ((20, 1), -800000)]
+        ok_endian = rc == want
+        print(f"  {'ok  ' if ok_endian else 'FAIL'} little->big redefinition shifts both records :: {rc}")
+        return 0 if (ok and ok_endian) else 1
 
 
 def main(argv):
@@ -92,6 +156,24 @@ def main(argv):
             rt = Path(td) / (src.name + ".rt")
             if run(exe, "roundtrip", trimmed, rt).returncode != 0 or sha(rt) != sha(trimmed):
                 failures.append(f"{src.name}: trimmed file does not round-trip (CRC/size invalid)")
+            # P2-3: every lat/lon = original + delta; serial zeroed; swc stays 0.
+            shifted = Path(td) / (src.name + ".shift")
+            if run(exe, "redact", src, shifted, 0, DLAT, DLON).returncode != 0:
+                failures.append(f"{src.name}: shift redact failed")
+                continue
+            ic, oc = coords(dump_msgs(exe, src)), coords(dump_msgs(exe, shifted))
+            if len(ic) != len(oc):
+                failures.append(f"{src.name}: coord count changed under shift")
+            else:
+                for (k, v), (k2, v2) in zip(ic, oc):
+                    delta = DLAT if k in LAT_FIELDS else DLON
+                    if k != k2 or v2 != wrap32(v + delta):
+                        failures.append(f"{src.name}: {k} {v2} != wrap({v}+{delta})")
+                        break
+            if any(sv != [0] * 8 for sv in serials(dump_msgs(exe, shifted))):
+                failures.append(f"{src.name}: serial not all zero")
+            if any(sw != 0 for sw in swc(dump_msgs(exe, shifted))):
+                failures.append(f"{src.name}: swc 31/32 not 0")
     if failures:
         print("redact gate FAILED:")
         for f in failures:

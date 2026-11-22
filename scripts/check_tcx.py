@@ -3,7 +3,8 @@
 
 Runs `moonfit tcx` over every redacted corpus .tcx and compares point/lap counts,
 lap distance and timer totals, heart-rate summaries, sport normalisation and the
-first/last FIT-epoch timestamps against a separate ElementTree walk. This proves
+first/last FIT-epoch timestamps, and every trackpoint's lat/lon/alt/speed/HR,
+against a separate ElementTree walk. This proves
 the MoonBit pull-parser extraction agrees with a conventional DOM parse on both
 vendor variants, including the non-standard Huawei Sport value and BOM.
 
@@ -79,6 +80,35 @@ def reference(path):
         avg = int(val(a, "Value")) if a is not None and val(a, "Value") else None
         maxhr = int(val(m, "Value")) if m is not None and val(m, "Value") else None
     times = [val(t, "Time") for t in tps if val(t, "Time")]
+
+    def find_text(tp, name):
+        for e in tp.iter():
+            if ln(e.tag) == name:
+                return e.text.strip() if e.text else None
+        return None
+
+    def hr_of(tp):
+        for e in tp.iter():
+            if ln(e.tag) == "HeartRateBpm":
+                for c in e:
+                    if ln(c.tag) == "Value":
+                        return int(c.text.strip()) if c.text else None
+        return None
+
+    def fnum(x):
+        return float(x) if x is not None else None
+
+    points = []
+    for tp in tps:
+        t = val(tp, "Time")
+        points.append({
+            "ts": iso_fit(t) if t else 0,
+            "lat": fnum(find_text(tp, "LatitudeDegrees")),
+            "lon": fnum(find_text(tp, "LongitudeDegrees")),
+            "alt": fnum(find_text(tp, "AltitudeMeters")),
+            "speed": fnum(find_text(tp, "Speed")),
+            "hr": hr_of(tp),
+        })
     return {
         "n_points": len(tps),
         "n_laps": len(laps),
@@ -90,6 +120,7 @@ def reference(path):
         "sport_nonstandard": sport_raw not in ("Biking", "Running", "Other"),
         "first_ts": iso_fit(times[0]) if times else 0,
         "last_ts": iso_fit(times[-1]) if times else 0,
+        "points": points,
     }
 
 
@@ -108,6 +139,21 @@ def compare(m, r):
     for k in ("device_distance_m", "timer_s"):
         if abs(m[k] - r[k]) > 1e-6:
             f.append(f"{k}: {m[k]} != {r[k]}")
+    mp, rp = m.get("points", []), r["points"]
+    if len(mp) != len(rp):
+        f.append(f"points len {len(mp)} != {len(rp)}")
+    else:
+        for i, (a, b) in enumerate(zip(mp, rp)):
+            if a["ts"] != b["ts"]:
+                f.append(f"point {i} ts {a['ts']} != {b['ts']}")
+            if a["hr"] != b["hr"]:
+                f.append(f"point {i} hr {a['hr']} != {b['hr']}")
+            for k in ("lat", "lon", "alt", "speed"):
+                av, bv = a[k], b[k]
+                if (av is None) != (bv is None):
+                    f.append(f"point {i} {k} presence {av} != {bv}")
+                elif av is not None and abs(av - bv) > 1e-6:
+                    f.append(f"point {i} {k} {av} != {bv}")
     return f
 
 
