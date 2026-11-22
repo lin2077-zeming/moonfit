@@ -47,11 +47,7 @@ later date, and none of it is required by any claim made above.
 
 | Not delivered | Reason |
 |---|---|
-| Developer-field element semantics | Developer data is carried as a raw blob so the stream advances exactly; normal array fields are decoded, but developer-defined element semantics are out of scope |
-| FIT encoding and the byte-exact round-trip assertion | Depends on message decoding |
-| TCX decoding | Depends on the canonical activity model |
-| FIT to TCX divergence report | Depends on TCX decoding |
-| Developer field semantics | Absent from the corpus: 0 occurrences across 6 files and 3120 records |
+| Developer-field element semantics | Absent from the corpus (0 occurrences across 6 files and 3120 records); developer data is carried as a raw blob so the stream advances exactly, but developer-defined element semantics are out of scope |
 | `length`, `hrv`, `course*`, `workout*`, `segments` messages | Absent from the corpus: 0 occurrences |
 | Power, cadence, left/right balance, torque effectiveness, pedal smoothness | Present as fields but 100 percent invalid in the corpus, so there is nothing to interpret |
 | GPX and KML parsing | Delegated to `2973181701/moongpx` and `cp15695540483/moonkml` |

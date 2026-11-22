@@ -95,10 +95,22 @@ def check(text: str, exists) -> list[str]:
             elif not second.strip():
                 failures.append(f"limitation has no reason: {capability[:60]}")
 
-    delivered_keys = {c.strip().lower() for c, _ in delivered if c}
+    def norm(s: str) -> str:
+        return " ".join(s.replace("`", "").lower().split())
+
+    delivered_norm = [norm(c) for c, _ in delivered if c]
     for capability, _ in limits:
-        if capability and capability.strip().lower() in delivered_keys:
-            failures.append(f"capability appears in both tables: {capability[:60]}")
+        if not capability:
+            continue
+        lk = norm(capability)
+        for dk in delivered_norm:
+            # A limitation that is a word-boundary prefix of a delivered
+            # capability (or vice versa) is the same claim in both tables,
+            # e.g. "TCX decoding" vs "TCX decoding into the same canonical
+            # model (...)". Exact matching alone misses this drift.
+            if lk == dk or dk.startswith(lk + " ") or lk.startswith(dk + " "):
+                failures.append(f"capability appears in both tables: {capability[:60]}")
+                break
 
     return failures
 
@@ -140,6 +152,23 @@ FIXTURE_BAD = """
 """
 
 
+FIXTURE_SUBSET_BAD = """
+# Declared scope
+
+## Delivered
+
+| Capability | Evidence |
+|---|---|
+| TCX decoding into the same canonical model | `src/units/units_test.mbt` |
+
+## Known limitations
+
+| Not delivered | Reason |
+|---|---|
+| TCX decoding | Depends on the model layer |
+"""
+
+
 def self_test() -> int:
     fake_exists = lambda p: p == "src/units/units_test.mbt"
     good = check(FIXTURE_OK, fake_exists)
@@ -150,7 +179,10 @@ def self_test() -> int:
     print(f"  {'ok  ' if len(bad) >= expected_kinds else 'FAIL'} broken fixture reports {len(bad)} problems (expected >= {expected_kinds})")
     for item in bad:
         print(f"        - {item}")
-    return 0 if ok else 1
+    subset = check(FIXTURE_SUBSET_BAD, fake_exists)
+    subset_ok = any("both tables" in f for f in subset)
+    print(f"  {'ok  ' if subset_ok else 'FAIL'} prefix-subset limitation flagged as cross-table conflict :: {subset}")
+    return 0 if (ok and subset_ok) else 1
 
 
 def main(argv: list[str]) -> int:
