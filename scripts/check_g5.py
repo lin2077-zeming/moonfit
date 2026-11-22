@@ -82,6 +82,13 @@ def tcx_ref(path):
     return tps, dist, timer, alt, hr, sport_raw
 
 
+def iso_to_fit(s):
+    # Independent of MoonBit parse_iso: stdlib datetime -> UTC unix -> FIT epoch.
+    from datetime import datetime
+    dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    return int(dt.timestamp()) - 631065600
+
+
 def reference(fit_path, tcx_path):
     recs, ses = fit_ref(fit_path)
     tps, tdist, ttimer, talt, thr, sport_raw = tcx_ref(tcx_path)
@@ -92,6 +99,19 @@ def reference(fit_path, tcx_path):
     fhr = sum(1 for d in recs if d.get(3) is not None)
     fsport = SPORT.get(ses[5], "sport(%d)" % ses[5])
     tsport, nonstd = norm_sport(sport_raw)
+
+    def tp_time(tp):
+        for c in tp:
+            if ln(c.tag) == "Time":
+                return c.text.strip() if c.text else None
+        return None
+
+    fit_first = recs[0].get(253) if recs else None
+    fit_last = recs[-1].get(253) if recs else None
+    t0 = tp_time(tps[0]) if tps else None
+    t1 = tp_time(tps[-1]) if tps else None
+    tcx_first = iso_to_fit(t0) if t0 else None
+    tcx_last = iso_to_fit(t1) if t1 else None
     return {
         "fit_points": len(recs), "tcx_points": len(tps), "points_equal": len(recs) == len(tps),
         "fit_timer_s": ftimer, "tcx_timer_s": ttimer, "timer_equal": ftimer == ttimer,
@@ -100,7 +120,8 @@ def reference(fit_path, tcx_path):
         "fit_alt": falt, "tcx_alt": talt, "fit_hr": fhr, "tcx_hr": thr,
         "sport_fit": fsport, "sport_tcx": tsport, "sport_equal": fsport == tsport,
         "tcx_sport_nonstandard": nonstd,
-        "first_ts_equal": True, "last_ts_equal": True,
+        "first_ts_equal": fit_first is not None and fit_first == tcx_first,
+        "last_ts_equal": fit_last is not None and fit_last == tcx_last,
         "swc_zero": ses[31] == 0 and ses[32] == 0,
         "ne_swc_contradiction": (ses[31] == 0 and ses[32] == 0) and (ses[29] != 0 or ses[30] != 0),
     }

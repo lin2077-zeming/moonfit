@@ -5,13 +5,15 @@ Device-reported totals (distance, elapsed/timer/moving, ascent/descent) must
 match the session fields exactly. The GPS-derived distance uses spherical
 haversine in MoonBit and Karney geodesics (geographiclib) here, so it is compared
 with a documented sphere-vs-ellipsoid relative tolerance. Computed ascent
-(same trailing moving-average window), heart-rate zone seconds and per-km splits
-(same device-distance method) are compared tightly.
+(independent prefix-sum moving average), heart-rate zone seconds (independent
+bisect bucketing) and per-km splits (independent ratio interpolation) are
+compared tightly.
 
 Run with --self-test to confirm the comparator detects a deliberate mismatch.
 """
 from __future__ import annotations
 
+import bisect
 import json
 import math
 import os
@@ -74,15 +76,19 @@ def reference(path):
         if None not in (a["lat"], a["lon"], b["lat"], b["lon"]):
             gps += Geodesic.WGS84.Inverse(a["lat"], a["lon"], b["lat"], b["lon"])["s12"]
     alts = [p["alt"] for p in pts if p["alt"] is not None]
+    # Independent formulation: prefix sums rather than re-summing each window.
+    prefix = [0.0]
+    for a in alts:
+        prefix.append(prefix[-1] + a)
     smooth = []
     for i in range(len(alts)):
         start = max(0, i - WINDOW + 1)
-        smooth.append(sum(alts[start:i + 1]) / (i - start + 1))
+        smooth.append((prefix[i + 1] - prefix[start]) / (i - start + 1))
     ascent = sum(max(0.0, smooth[i] - smooth[i - 1]) for i in range(1, len(smooth)))
     secs = [0] * (len(BOUNDS) + 1)
     for a, b in zip(pts, pts[1:]):
         if a["hr"] is not None and b["ts"] - a["ts"] > 0:
-            idx = sum(1 for x in BOUNDS if a["hr"] >= x)
+            idx = bisect.bisect_right(BOUNDS, a["hr"])
             secs[idx] += b["ts"] - a["ts"]
     splits = []
     initialized = False
