@@ -49,7 +49,11 @@ fn run_dump(argv : Array[String]) -> Int32 {
     }
   }
   for m in @fit.data_messages(msgs) {
-    let ts = match m.ts_offset {
+    let ts = match m.timestamp {
+      Some(t) => t.to_string()
+      None => "null"
+    }
+    let ts_offset = match m.ts_offset {
       Some(t) => t.to_string()
       None => "null"
     }
@@ -71,7 +75,7 @@ fn run_dump(argv : Array[String]) -> Int32 {
       i = i + 1
     }
     println(
-      "{\"g\":\{m.global},\"l\":\{m.local_id},\"ts\":\{ts},\"f\":[\{fj}]}",
+      "{\"g\":\{m.global},\"l\":\{m.local_id},\"ts\":\{ts},\"ts_offset\":\{ts_offset},\"f\":[\{fj}]}",
     )
   }
   0
