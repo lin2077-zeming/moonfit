@@ -2,8 +2,9 @@
 """Gate JSON (P0-6): every CLI JSON output must be parseable and safe.
 
 Builds a FIT whose string field contains a 0x08 control byte and a TCX whose
-Sport is 'a&quot;b' and DistanceMeters is NaN, then asserts `moonfit dump` /
-`moonfit tcx` emit valid JSON (control char escaped, quote escaped, NaN->null).
+Sport is 'a&quot;b', then asserts `moonfit dump` / `moonfit tcx` emit valid
+JSON (control char escaped, quote escaped). A separate TCX with DistanceMeters
+NaN must be rejected (exit 2, P1-2) or emitted as null, never as bare NaN.
 On the pre-P0-6 code these outputs were invalid JSON.
 """
 import json, struct, subprocess, sys, os
@@ -27,7 +28,8 @@ def fit_with_control_string():
     hdr+=u16(crc(hdr))
     full=hdr+body; full+=u16(crc(full))
     return bytes(full)
-TCX='<?xml version="1.0"?><TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"><Activities><Activity Sport="a&quot;b"><Lap StartTime="2026-01-01T00:00:00Z"><TotalTimeSeconds>1</TotalTimeSeconds><DistanceMeters>NaN</DistanceMeters><Track><Trackpoint><Time>2026-01-01T00:00:00Z</Time><Position><LatitudeDegrees>1.0</LatitudeDegrees><LongitudeDegrees>2.0</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>'
+TCX_QUOTE='<?xml version="1.0"?><TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"><Activities><Activity Sport="a&quot;b"><Lap StartTime="2026-01-01T00:00:00Z"><TotalTimeSeconds>1</TotalTimeSeconds><DistanceMeters>100</DistanceMeters><Track><Trackpoint><Time>2026-01-01T00:00:00Z</Time><Position><LatitudeDegrees>1.0</LatitudeDegrees><LongitudeDegrees>2.0</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>'
+TCX_NAN='<?xml version="1.0"?><TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"><Activities><Activity Sport="Biking"><Lap StartTime="2026-01-01T00:00:00Z"><TotalTimeSeconds>1</TotalTimeSeconds><DistanceMeters>NaN</DistanceMeters><Track><Trackpoint><Time>2026-01-01T00:00:00Z</Time><Position><LatitudeDegrees>1.0</LatitudeDegrees><LongitudeDegrees>2.0</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>'
 def locate():
     for n in ("moonfit.exe","moonfit"):
         p=BUILD/n
@@ -48,17 +50,30 @@ def main():
             if "\x08" not in txt: fails.append("control char not round-tripped")
         except Exception as e:
             fails.append(f"dump invalid JSON: {e}")
-        t=Path(td)/"c.tcx"; t.write_text(TCX)
+        t=Path(td)/"q.tcx"; t.write_text(TCX_QUOTE)
         p=subprocess.run([str(exe),"tcx",str(t)],capture_output=True,text=True)
         try:
             d=json.loads(p.stdout)
             if d["sport_raw"]!='a"b': fails.append(f"sport_raw {d['sport_raw']!r}")
-            if d["device_distance_m"] is not None: fails.append("NaN not null")
         except Exception as e:
-            fails.append(f"tcx invalid JSON: {e}")
+            fails.append(f"tcx quote invalid JSON: {e}")
+        # P1-2: a NaN distance is rejected (exit 2) or emitted as null; it must
+        # never appear as bare NaN/Infinity, and any emitted JSON must parse.
+        t=Path(td)/"n.tcx"; t.write_text(TCX_NAN)
+        p=subprocess.run([str(exe),"tcx",str(t)],capture_output=True,text=True)
+        if "NaN" in p.stdout or "Infinity" in p.stdout:
+            fails.append("bare NaN/Infinity in tcx stdout")
+        if p.returncode==0:
+            try:
+                d=json.loads(p.stdout)
+                if d["device_distance_m"] is not None: fails.append("NaN not null")
+            except Exception as e:
+                fails.append(f"tcx NaN invalid JSON: {e}")
+        elif p.returncode!=2:
+            fails.append(f"tcx NaN unexpected exit {p.returncode}")
     if fails:
         print("JSON gate FAILED:"); [print("  -",x) for x in fails]; return 1
-    print("JSON gate OK: dump/tcx outputs are valid JSON (control/quote escaped, NaN->null).")
+    print("JSON gate OK: dump/tcx outputs are valid JSON (control/quote escaped; NaN rejected or null).")
     return 0
 if __name__=="__main__":
     sys.exit(main())

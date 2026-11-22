@@ -42,3 +42,63 @@ test "tcx: UTF-8 BOM is tolerated" {
   assert_eq(t.activity.sport, "running")
   assert_eq(t.activity.points.length(), 1)
 }
+
+///|
+fn tcx_tp_field(inner : String) -> Bytes {
+  @utf8.encode(
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TrainingCenterDatabase xmlns=\"http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2\">\n<Activities><Activity Sport=\"Biking\"><Id>2026-08-03T10:40:06Z</Id>\n<Lap StartTime=\"2026-08-03T10:40:06Z\"><TotalTimeSeconds>199.0</TotalTimeSeconds><DistanceMeters>817.03</DistanceMeters>\n<Track><Trackpoint><Time>2026-08-03T10:40:06Z</Time>" +
+    inner +
+    "</Trackpoint></Track>\n</Lap></Activity></Activities></TrainingCenterDatabase>",
+  )
+}
+
+///|
+fn raises_malformed(data : Bytes) -> Bool {
+  let _ = @tcx.parse(data) catch { @tcx.Malformed(_) => return true }
+  false
+}
+
+///|
+test "P1-2: malformed heart-rate value raises Malformed, not Some(0)" {
+  assert_true(
+    raises_malformed(
+      tcx_tp_field("<HeartRateBpm><Value>abc</Value></HeartRateBpm>"),
+    ),
+  )
+  assert_true(
+    raises_malformed(
+      tcx_tp_field("<HeartRateBpm><Value>N/A</Value></HeartRateBpm>"),
+    ),
+  )
+  assert_true(
+    raises_malformed(
+      tcx_tp_field("<HeartRateBpm><Value>NaN</Value></HeartRateBpm>"),
+    ),
+  )
+  assert_true(
+    raises_malformed(
+      tcx_tp_field("<HeartRateBpm><Value>Infinity</Value></HeartRateBpm>"),
+    ),
+  )
+  assert_true(
+    raises_malformed(
+      tcx_tp_field("<HeartRateBpm><Value>3000000000</Value></HeartRateBpm>"),
+    ),
+  )
+}
+
+///|
+test "P1-2: malformed distance value raises Malformed, not 0" {
+  assert_true(
+    raises_malformed(tcx_tp_field("<DistanceMeters>NaN</DistanceMeters>")),
+  )
+  assert_true(
+    raises_malformed(tcx_tp_field("<DistanceMeters>Infinity</DistanceMeters>")),
+  )
+  assert_true(
+    raises_malformed(tcx_tp_field("<DistanceMeters>-5</DistanceMeters>")),
+  )
+  assert_true(
+    raises_malformed(tcx_tp_field("<DistanceMeters>abc</DistanceMeters>")),
+  )
+}

@@ -60,10 +60,67 @@ fn to_int(s : String) -> Int64 {
 }
 
 ///|
-fn to_double(s : String) -> Double {
-  @string.parse_double(s) catch {
-    _ => 0.0
+fn parse_i64_strict(s : String) -> Int64 raise TcxError {
+  @string.parse_int64(s) catch {
+    _ => raise TcxError::Malformed("invalid integer: " + s)
   }
+}
+
+///|
+fn parse_f64_strict(s : String) -> Double raise TcxError {
+  let d = @string.parse_double(s) catch {
+    _ => raise TcxError::Malformed("invalid number: " + s)
+  }
+  let inf = 1.0 / 0.0
+  if d != d || d == inf || d == -inf {
+    raise TcxError::Malformed("non-finite number: " + s)
+  }
+  d
+}
+
+///|
+fn parse_i32_strict(s : String) -> Int32 raise TcxError {
+  let v = parse_i64_strict(s)
+  if v < -2147483648L || v > 2147483647L {
+    raise TcxError::Malformed("integer out of int32 range: " + s)
+  }
+  v.to_int()
+}
+
+///|
+fn parse_dist(s : String) -> Double raise TcxError {
+  let d = parse_f64_strict(s)
+  if d < 0.0 || d > 100000000.0 {
+    raise TcxError::Malformed("distance out of range: " + s)
+  }
+  d
+}
+
+///|
+fn parse_time(s : String) -> Double raise TcxError {
+  let d = parse_f64_strict(s)
+  if d < 0.0 || d > 1000000000.0 {
+    raise TcxError::Malformed("time out of range: " + s)
+  }
+  d
+}
+
+///|
+fn parse_lat(s : String) -> Double raise TcxError {
+  let d = parse_f64_strict(s)
+  if d < -90.0 || d > 90.0 {
+    raise TcxError::Malformed("latitude out of range: " + s)
+  }
+  d
+}
+
+///|
+fn parse_lon(s : String) -> Double raise TcxError {
+  let d = parse_f64_strict(s)
+  if d < -180.0 || d > 180.0 {
+    raise TcxError::Malformed("longitude out of range: " + s)
+  }
+  d
 }
 
 ///|
@@ -229,27 +286,27 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
           if in_tp {
             match top {
               "Time" => tp_time = parse_iso(txt)
-              "LatitudeDegrees" => tp_lat = Some(to_double(txt))
-              "LongitudeDegrees" => tp_lon = Some(to_double(txt))
-              "AltitudeMeters" => tp_alt = Some(to_double(txt))
-              "DistanceMeters" => tp_dist = Some(to_double(txt))
-              "Cadence" => tp_cad = Some(to_int(txt).to_int())
-              "Speed" => tp_speed = Some(to_double(txt))
+              "LatitudeDegrees" => tp_lat = Some(parse_lat(txt))
+              "LongitudeDegrees" => tp_lon = Some(parse_lon(txt))
+              "AltitudeMeters" => tp_alt = Some(parse_f64_strict(txt))
+              "DistanceMeters" => tp_dist = Some(parse_dist(txt))
+              "Cadence" => tp_cad = Some(parse_i32_strict(txt))
+              "Speed" => tp_speed = Some(parse_f64_strict(txt))
               "Value" =>
                 if parent == "HeartRateBpm" {
-                  tp_hr = Some(to_int(txt).to_int())
+                  tp_hr = Some(parse_i32_strict(txt))
                 }
               _ => ()
             }
           } else {
             match top {
-              "TotalTimeSeconds" => lap_time = to_double(txt)
-              "DistanceMeters" => lap_dist = to_double(txt)
+              "TotalTimeSeconds" => lap_time = parse_time(txt)
+              "DistanceMeters" => lap_dist = parse_dist(txt)
               "Value" =>
                 if parent == "AverageHeartRateBpm" {
-                  lap_avghr = Some(to_int(txt).to_int())
+                  lap_avghr = Some(parse_i32_strict(txt))
                 } else if parent == "MaximumHeartRateBpm" {
-                  lap_maxhr = Some(to_int(txt).to_int())
+                  lap_maxhr = Some(parse_i32_strict(txt))
                 }
               _ => ()
             }
