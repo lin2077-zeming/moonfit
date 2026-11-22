@@ -42,7 +42,7 @@ Keep a Changelog, and the version numbers follow semantic versioning.
   mutations across all six files. `moonfit verify` and `moonfit info` added.
 - `src/diff`: FIT vs TCX divergence report (point counts L1, timer equality L6,
   pause lost, distance delta, altitude/HR presence, sport normalisation, timestamp
-  alignment). `moonfit diff`; Gate G5 cross-checks all 6 pairs independently and
+  alignment, bounding-box defect B1 as swc_zero/ne_swc_contradiction). `moonfit diff`; Gate G5 cross-checks all 6 pairs independently and
   asserts B1 (session swc==0 with nec!=0).
 - `src/redact`: native FIT redaction (zero device serial, exact semicircle coordinate
   shift, optional leading/trailing record trim) re-encoded with recomputed CRCs.

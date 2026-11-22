@@ -60,6 +60,10 @@ pub(all) struct Activity {
   device_descent_m : Double
   avg_hr : Int32?
   max_hr : Int32?
+  swc_lat : Double?
+  swc_long : Double?
+  nec_lat : Double?
+  nec_long : Double?
 }
 
 ///|
@@ -311,5 +315,9 @@ pub fn from_fit(msgs : Array[@fit.Message]) -> Activity raise @fit.FitError {
     },
     avg_hr: i32_opt(s, 16),
     max_hr: i32_opt(s, 17),
+    swc_lat: degrees_opt(s, 31),
+    swc_long: degrees_opt(s, 32),
+    nec_lat: degrees_opt(s, 29),
+    nec_long: degrees_opt(s, 30),
   }
 }

@@ -27,6 +27,10 @@ pub(all) struct Activity {
   device_descent_m : Double
   avg_hr : Int32?
   max_hr : Int32?
+  swc_lat : Double?
+  swc_long : Double?
+  nec_lat : Double?
+  nec_long : Double?
 }
 pub fn Activity::equal(Self, Self) -> Bool
 pub fn Activity::not_equal(Self, Self) -> Bool

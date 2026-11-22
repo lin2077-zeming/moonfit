@@ -37,6 +37,10 @@ test "diff: pause lost and law invariants on synthetic pair" {
     device_descent_m: 0.0,
     avg_hr: Some(115),
     max_hr: Some(120),
+    swc_lat: None,
+    swc_long: None,
+    nec_lat: None,
+    nec_long: None,
   }
   let tcx : @model.Activity = {
     sport: "cycling",
@@ -52,6 +56,10 @@ test "diff: pause lost and law invariants on synthetic pair" {
     device_descent_m: 0.0,
     avg_hr: Some(115),
     max_hr: Some(120),
+    swc_lat: None,
+    swc_long: None,
+    nec_lat: None,
+    nec_long: None,
   }
   let d = @diff.compare(fit, tcx, false)
   assert_true(d.points_equal)
@@ -63,4 +71,49 @@ test "diff: pause lost and law invariants on synthetic pair" {
   assert_true(d.sport_equal)
   assert_true(d.first_ts_equal)
   assert_true(d.last_ts_equal)
+}
+
+///|
+test "P1-7: diff reports B1 swc_zero and ne_swc_contradiction" {
+  let fit : @model.Activity = {
+    sport: "cycling",
+    sub_sport: "road",
+    start_time: 0L,
+    points: [],
+    laps: [],
+    device_distance_m: 0.0,
+    elapsed_s: 0.0,
+    timer_s: 0.0,
+    moving_s: 0.0,
+    device_ascent_m: 0.0,
+    device_descent_m: 0.0,
+    avg_hr: None,
+    max_hr: None,
+    swc_lat: Some(0.0),
+    swc_long: Some(0.0),
+    nec_lat: Some(22.0),
+    nec_long: Some(112.0),
+  }
+  let tcx : @model.Activity = {
+    sport: "cycling",
+    sub_sport: "generic",
+    start_time: 0L,
+    points: [],
+    laps: [],
+    device_distance_m: 0.0,
+    elapsed_s: 0.0,
+    timer_s: 0.0,
+    moving_s: 0.0,
+    device_ascent_m: 0.0,
+    device_descent_m: 0.0,
+    avg_hr: None,
+    max_hr: None,
+    swc_lat: None,
+    swc_long: None,
+    nec_lat: None,
+    nec_long: None,
+  }
+  let d = @diff.compare(fit, tcx, false)
+  assert_true(d.swc_zero)
+  assert_true(d.ne_swc_contradiction)
 }

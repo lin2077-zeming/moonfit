@@ -31,6 +31,8 @@ pub(all) struct Divergence {
   tcx_sport_nonstandard : Bool
   first_ts_equal : Bool
   last_ts_equal : Bool
+  swc_zero : Bool
+  ne_swc_contradiction : Bool
 }
 
 ///|
@@ -80,6 +82,14 @@ fn last_ts(a : @model.Activity) -> Int64 {
 }
 
 ///|
+fn nonzero(o : Double?) -> Bool {
+  match o {
+    Some(v) => v != 0.0
+    None => false
+  }
+}
+
+///|
 pub fn compare(
   fit : @model.Activity,
   tcx : @model.Activity,
@@ -108,6 +118,10 @@ pub fn compare(
     tcx_sport_nonstandard: tcx_nonstandard,
     first_ts_equal: first_ts(fit) == first_ts(tcx),
     last_ts_equal: last_ts(fit) == last_ts(tcx),
+    swc_zero: fit.swc_lat == Some(0.0) && fit.swc_long == Some(0.0),
+    ne_swc_contradiction: fit.swc_lat == Some(0.0) &&
+    fit.swc_long == Some(0.0) &&
+    (nonzero(fit.nec_lat) || nonzero(fit.nec_long)),
   }
 }
 
@@ -168,5 +182,9 @@ pub fn to_json(d : Divergence) -> String {
   b(d.first_ts_equal) +
   ",\"last_ts_equal\":" +
   b(d.last_ts_equal) +
+  ",\"swc_zero\":" +
+  b(d.swc_zero) +
+  ",\"ne_swc_contradiction\":" +
+  b(d.ne_swc_contradiction) +
   "}"
 }

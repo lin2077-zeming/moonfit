@@ -38,6 +38,8 @@ pub(all) struct Divergence {
   tcx_sport_nonstandard : Bool
   first_ts_equal : Bool
   last_ts_equal : Bool
+  swc_zero : Bool
+  ne_swc_contradiction : Bool
 }
 pub fn Divergence::equal(Self, Self) -> Bool
 pub fn Divergence::not_equal(Self, Self) -> Bool

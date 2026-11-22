@@ -101,7 +101,8 @@ def reference(fit_path, tcx_path):
         "sport_fit": fsport, "sport_tcx": tsport, "sport_equal": fsport == tsport,
         "tcx_sport_nonstandard": nonstd,
         "first_ts_equal": True, "last_ts_equal": True,
-        "swc_zero": ses[31] == 0 and ses[29] != 0,
+        "swc_zero": ses[31] == 0 and ses[32] == 0,
+        "ne_swc_contradiction": (ses[31] == 0 and ses[32] == 0) and (ses[29] != 0 or ses[30] != 0),
     }
 
 
@@ -115,8 +116,6 @@ def moon(exe, f, t):
 def compare(m, r):
     f = []
     for k, v in r.items():
-        if k == "swc_zero":
-            continue
         if k not in m:
             f.append(f"missing {k}")
         elif isinstance(v, float):

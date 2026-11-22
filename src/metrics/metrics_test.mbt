@@ -54,6 +54,10 @@ test "metrics: synthetic activity splits, zones and ascent" {
     device_descent_m: 0.0,
     avg_hr: None,
     max_hr: None,
+    swc_lat: None,
+    swc_long: None,
+    nec_lat: None,
+    nec_long: None,
   }
   let m = @metrics.compute(act, [120, 140], 1)
   assert_eq(m.computed_ascent_m, 20.0)
@@ -106,6 +110,10 @@ test "P0-2: no-GPS activity uses device distance for avg speed/pace" {
     device_descent_m: 0.0,
     avg_hr: None,
     max_hr: None,
+    swc_lat: None,
+    swc_long: None,
+    nec_lat: None,
+    nec_long: None,
   }
   let m = @metrics.compute(act, [], 1)
   assert_eq(m.gps_distance_m, 0.0)
@@ -148,6 +156,10 @@ fn act_of(
     device_descent_m: 0.0,
     avg_hr: None,
     max_hr: None,
+    swc_lat: None,
+    swc_long: None,
+    nec_lat: None,
+    nec_long: None,
   }
 }
 
@@ -273,6 +285,10 @@ test "P1-1: gps_distance_m finite for near-antipodal track points" {
     device_descent_m: 0.0,
     avg_hr: None,
     max_hr: None,
+    swc_lat: None,
+    swc_long: None,
+    nec_lat: None,
+    nec_long: None,
   }
   let m = @metrics.compute(act, [120, 140], 1)
   assert_true(!(m.gps_distance_m != m.gps_distance_m))
