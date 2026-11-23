@@ -3,6 +3,28 @@
 All notable changes to this module are recorded here. The format follows
 Keep a Changelog, and the version numbers follow semantic versioning.
 
+## 0.4.0
+
+### Added
+
+- `moonfit fidelity <fit> --target tcx|gpx|kml`: a spec-derived format fidelity
+  loss budget. For each target format it lists the FIT semantics the format's own
+  schema (TCX v2 / GPX 1.1 / KML 2.2) cannot represent, or only via an extension /
+  at reduced precision, each entry citing the spec, quantified per activity
+  (pause_lost_s = elapsed - timer). Vendor export behaviour is excluded.
+- `check_fidelity` gate (independent fitparse cross-check, rejects vendor-behaviour
+  claims) and `check_profile` gate (pins FIT protocol 1.0 / profile 20.74 and the
+  8-activity-message / 140-field complete-support endpoint against a checked-in
+  reference). Both self-test and run in CI.
+
+### Changed
+
+- `diff` is documented as a retrospective observed-divergence comparison of two
+  specific exports, not a predictive conversion-loss model.
+- `docs/spec-notes.md` separates vendor export observations (L1-L6 / B1-B11) from
+  format-inherent limitations (spec-derived); `docs/boundaries.md` states the
+  complete-support endpoint under the pinned standard version.
+
 ## 0.3.0
 
 ### Added
