@@ -9,6 +9,16 @@ The declared scope in the competition proposal is a copy of the *Delivered*
 table below. Keeping the two identical is what stops a document inside this
 repository from promising more than the code does.
 
+**Complete-support endpoint (pinned standard).** Under FIT protocol 1.0 /
+profile 20.74, complete support means: the container layer in full (16 base
+types, 12/14-byte headers, CRC-16, compressed timestamps, local-type
+redefinition, both endiannesses) and byte-exact decode/encode of any conforming
+file, plus a semantic model for the eight activity message types (140 fields).
+The boundary: developer fields and non-activity messages are preserved by
+passthrough without semantics; invalid power/cadence fields are parsed but not
+interpreted; TCX/GPX/KML are not written. `scripts/check_profile.py` verifies this
+endpoint against a pinned profile-20.74 field reference.
+
 ## Delivered
 
 | Capability | Evidence |
@@ -29,7 +39,9 @@ repository from promising more than the code does.
 | Canonical activity model with invalid-as-None extraction and fixed (global, def_num) provenance | `src/model/model.mbt` |
 | Derived metrics (device + GPS distance, three-way time, pace, per-km splits, smoothing-window ascent, caller-defined HR zones) and Gate G4 vs an independent Karney reference | `scripts/check_g4.py` |
 | TCX decoding into the same canonical model (BOM + namespace tolerance, iGPSPORT/Huawei variants, non-standard Sport normalisation), cross-checked on all 14 corpus .tcx against an independent XML parse | `scripts/check_tcx.py` |
-| FIT vs TCX divergence report encoding laws L1/L6 and defect B1 as checkable facts, cross-checked on all 6 pairs against an independent reference (Gate G5) | `scripts/check_g5.py` |
+| FIT vs TCX observed-divergence report (vendor export observations L1/L6 and defect B1) cross-checked on all 6 pairs against an independent reference (Gate G5); a retrospective comparison of two specific exports, not a predictive conversion model | `scripts/check_g5.py` |
+| Spec-derived format fidelity loss budget (`moonfit fidelity`) for TCX/GPX/KML from each format's own schema, quantified per activity and excluding vendor export behaviour | `src/fidelity/fidelity_test.mbt` |
+| Pinned FIT protocol 1.0 / profile 20.74 complete-support endpoint gate: 8 activity messages and the 140-field set verified against a pinned reference | `scripts/check_profile.py` |
 | Native FIT redaction (zero serial, exact semicircle coordinate shift, optional record trim, optional `--strip-hr`, machine-readable `--report`) that reproduces the committed corpus byte-for-byte from raw exports and is idempotent + structure-preserving | `scripts/check_redact.py` |
 | Robustness: typed errors for truncation / bad signature / bad header size / header-CRC / missing definition / unknown base type / overlong field, and a full single-byte mutation sweep rejected on all four backends (Gate G6) | `src/fit/fit_test.mbt` |
 | `moonfit verify` (total validity) and `moonfit info` (header + counts) | `scripts/check_g6.py` |

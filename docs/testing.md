@@ -54,6 +54,17 @@ the corpus has a recorded disposition. A field that is silently dropped fails
 the gate, which is what prevents a single lucky sample from standing in for the
 whole space.
 
+**G-fidelity — spec-derived loss budget.** `moonfit fidelity` reports, per target
+format, the FIT semantics that format's own schema cannot represent (each entry
+cites the spec), quantified per activity. Cross-checked against an independent
+fitparse read of the session; vendor export behaviour must not appear as a format
+loss.
+
+**G-profile — pinned complete-support endpoint.** Every corpus file declares FIT
+protocol 1.0 / profile 20.74; the eight activity message types and the pinned
+140-field set are decoded with no silent drop and no undeclared field, against a
+checked-in profile reference.
+
 ## Rules that apply to all gates
 
 - Expected values are constants. A test never calls the code under test to

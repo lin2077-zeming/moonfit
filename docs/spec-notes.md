@@ -85,10 +85,14 @@ invent a measurement the device never made.
 `session.time_in_hr_zone`, `time_in_cadence_zone` and `time_in_power_zone` are
 array fields of 5, 6 and 7 uint32 elements respectively, all zero here.
 
-## Structural laws measured across formats
+## Vendor export observations measured across formats
 
-Each law held for every file it was checked against, which is what makes it
-usable as a regression gate rather than an observation.
+These are measurements of how iGPSPORT and Huawei exported THIS corpus, asserted
+as regression gates because they held for every file checked. They are **vendor
+export observations, not format limitations**: a vendor export choice (such as the
+GPX point subsampling in L2/L3, or the omitted heart rate in B10) is not something
+the target format forbids or requires. Format-inherent limitations are derived
+separately from the format specifications in the next section.
 
 | Law | Statement | Files |
 |---|---|---|
@@ -105,10 +109,24 @@ time, recorded in FIT as 24 pairs of `timer start` and `timer stop` events.
 TCX, GPX and KML all carry the 5355 s figure and none of them carries anything
 that indicates the other 913 s existed.
 
+## Format-inherent limitations (spec-derived)
+
+Distinct from the vendor observations above, `src/fidelity` derives from each
+target format's OWN schema (TCX v2 XSD, GPX 1.1 XSD, KML 2.2) which FIT semantics
+the format cannot represent, or can only represent via an extension or at reduced
+precision: auto-pause/timer events and device serial are unrepresentable in all
+three; coordinates are decimal degrees rather than semicircles; heart rate,
+cadence, power and speed need the TCX TPX or GPX gpxtpx extensions and have no
+structured KML form; cumulative distance has no GPX/KML element. `moonfit fidelity`
+reports this spec-derived loss budget per target format, quantified per activity
+(e.g. pause seconds = elapsed - timer). It deliberately excludes vendor export
+behaviour, which is recorded in the two observation sections here.
+
 ## Device defects found in the corpus
 
-These are properties of the files, not of this decoder. Each one is asserted by
-a gate so that a change in behaviour is noticed.
+These are properties of the vendor export files, not of this decoder and not of
+the formats themselves. Each one is asserted by a gate so that a change in
+behaviour is noticed.
 
 | Id | Observation | Files |
 |---|---|---|
