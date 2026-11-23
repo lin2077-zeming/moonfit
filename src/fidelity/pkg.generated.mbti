@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "lin2077-zeming/moonfit/src/fidelity"
+
+import {
+  "lin2077-zeming/moonfit/src/model",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn losses(String) -> Array[Loss]?
+
+pub fn report(@model.Activity, String) -> FidelityReport?
+
+pub fn to_json(FidelityReport) -> String
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) struct FidelityReport {
+  target : String
+  record_count : Int32
+  pause_lost_s : Double
+  losses : Array[Loss]
+}
+pub fn FidelityReport::equal(Self, Self) -> Bool
+pub fn FidelityReport::not_equal(Self, Self) -> Bool
+pub fn FidelityReport::to_repr(Self) -> @debug.Repr
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Loss {
+  semantic : String
+  kind : String
+  spec : String
+}
+pub fn Loss::equal(Self, Self) -> Bool
+pub fn Loss::not_equal(Self, Self) -> Bool
+pub fn Loss::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

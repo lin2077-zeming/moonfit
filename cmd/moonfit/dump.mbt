@@ -491,3 +491,57 @@ fn run_info(argv : Array[String]) -> Int32 {
   )
   0
 }
+
+///|
+fn run_fidelity(argv : Array[String]) -> Int32 {
+  let mut target = "tcx"
+  let mut path : String? = None
+  let mut i = 1
+  while i < argv.length() {
+    let a = argv[i]
+    if a == "--target" {
+      i = i + 1
+      if i < argv.length() {
+        target = argv[i]
+      } else {
+        eprintln("moonfit: --target needs a value")
+        return 2
+      }
+    } else if path == None {
+      path = Some(a)
+    } else {
+      eprintln("moonfit: fidelity takes a single file argument")
+      return 2
+    }
+    i = i + 1
+  }
+  let p = match path {
+    Some(x) => x
+    None => {
+      eprintln("moonfit: fidelity needs a file argument")
+      return 2
+    }
+  }
+  let data = @fs.read_file_to_bytes(p) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot read \{p}")
+      return 2
+    }
+  }
+  let act = @model.from_fit(@fit.parse_messages(data)) catch {
+    _ => {
+      eprintln("moonfit: cannot decode \{p}")
+      return 2
+    }
+  }
+  match @fidelity.report(act, target) {
+    Some(r) => {
+      println(@fidelity.to_json(r))
+      0
+    }
+    None => {
+      eprintln("moonfit: unknown target '\{target}' (use tcx, gpx or kml)")
+      2
+    }
+  }
+}
