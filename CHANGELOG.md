@@ -3,15 +3,45 @@
 All notable changes to this module are recorded here. The format follows
 Keep a Changelog, and the version numbers follow semantic versioning.
 
+## 0.5.0 - 2026-11-25
+
+
+### Changed
+
+- `moonfit fidelity` now takes `portable-core`, `standard-extended` or
+  `loss-minimal` and reports the selected policy, coordinate digit count, angle
+  and metre bounds, semantic status, specification reference and reversibility.
+  The JSON report carries `analysis_only=true` while TCX, GPX and KML writers
+  remain outside the release boundary.
+- The fidelity documentation separates FIT semicircle unit conversion from
+  decimal rounding and separates format capability from vendor export
+  observations.
+- TCX point JSON is collected and joined once. The TCX gate checks the linear
+  serialization shape as well as every emitted point.
+
+### Fixed
+
+- `redact` rejects input/output/report path collisions, unknown options, extra
+  positional arguments and invalid signed 32-bit coordinate offsets before
+  writing any output.
+- TCX rejects invalid calendar timestamps and XML documents without exactly one
+  activity and at least one lap. Missing per-lap distance falls back to the
+  per-lap trackpoint distance delta.
+- JSON real values use the shared finite-number serializer. Metrics split
+  interpolation resets on non-monotonic segments, handles distance plateaus and
+  records large-jump truncation. SWC coordinate handling distinguishes the
+  corpus zero sentinel from non-zero values, and trimming rewrites retained
+  compressed timestamps when their reference record is removed.
+
 ## 0.4.0
 
 ### Added
 
-- `moonfit fidelity <fit> --target tcx|gpx|kml`: a spec-derived format fidelity
-  loss budget. For each target format it lists the FIT semantics the format's own
-  schema (TCX v2 / GPX 1.1 / KML 2.2) cannot represent, or only via an extension /
-  at reduced precision, each entry citing the spec, quantified per activity
-  (pause_lost_s = elapsed - timer). Vendor export behaviour is excluded.
+- `moonfit fidelity <fit> --target tcx|gpx|kml`: a profile-based capability
+  report. Each target format can be evaluated with `portable-core`,
+  `standard-extended` or `loss-minimal`, and each entry carries a status, policy,
+  specification reference, coordinate bound and reversibility flag. Vendor export
+  behaviour is excluded and the report is marked analysis-only.
 - `check_fidelity` gate (independent fitparse cross-check, rejects vendor-behaviour
   claims) and `check_profile` gate (pins FIT protocol 1.0 / profile 20.74 and the
   8-activity-message / 140-field complete-support endpoint against a checked-in

@@ -294,3 +294,40 @@ test "P1-1: gps_distance_m finite for near-antipodal track points" {
   assert_true(!(m.gps_distance_m != m.gps_distance_m))
   assert_true(m.gps_distance_m > 0.0)
 }
+
+///|
+test "R7: distance plateaus use the latest timestamp without negative splits" {
+  let m = @metrics.compute(
+    act_of([pt(0L, 0.0), pt(10L, 0.0), pt(20L, 1000.0)], 1000.0, 20.0),
+    [],
+    1,
+  )
+  assert_eq(m.splits.length(), 1)
+  assert_eq(m.splits[0].time_s, 20L)
+  assert_true(m.splits[0].time_s >= 0L)
+}
+
+///|
+test "R7: reverse time resets the segment and never emits negative time" {
+  let m = @metrics.compute(
+    act_of([pt(20L, 0.0), pt(10L, 1000.0)], 1000.0, 20.0),
+    [],
+    1,
+  )
+  for s in m.splits {
+    assert_true(s.time_s >= 0L)
+  }
+}
+
+///|
+test "R7: large jump stops interpolation and marks truncation" {
+  let m = @metrics.compute(
+    act_of([pt(0L, 0.0), pt(10L, 200000.0), pt(20L, 201000.0)], 201000.0, 20.0),
+    [],
+    1,
+  )
+  assert_true(m.splits_truncated)
+  for s in m.splits {
+    assert_true(s.time_s >= 0L)
+  }
+}

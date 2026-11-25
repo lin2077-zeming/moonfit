@@ -2,28 +2,30 @@
 
 Garmin FIT activity codec and cross-format fidelity analysis for MoonBit.
 
-FIT is the only member of the FIT / TCX / GPX / KML family that carries what the
-device actually recorded. The other three are projections of it, and the
-projections drop things silently. Measured on the corpus in this repository:
+FIT records wire-level activity data. TCX, GPX and KML can carry different
+subsets of that data depending on the target's core fields, standard extensions
+and the export policy chosen by a converter. moonfit keeps those questions
+separate:
 
-- GPX carries `ceil(n / 2)` of the FIT records, taking every second one.
-- TCX `Lap/TotalTimeSeconds` is the FIT `total_timer_time`, not
-  `total_elapsed_time`. In one corpus ride that discards 913 seconds of
-  auto-pause with nothing left behind to show it happened.
-- The Huawei exports in the corpus carry no heart rate and no altitude at all.
-- One device writes `session.swc_lat` and `session.swc_long` as 0 while the
-  north-east corner holds real values, so a bounding box built from both spans
-  from the Gulf of Guinea.
+- `moonfit diff` compares a specific FIT export with a specific TCX export and
+  reports observed differences.
+- `moonfit fidelity` reports the expected result of a named target profile from
+  the target format specification. It does not write TCX, GPX or KML files.
+- FIT semicircles are converted to decimal degrees as a unit conversion. A
+  profile reports rounding bounds only when its decimal serialization chooses a
+  finite number of fractional digits.
 
-moonfit exists to make that gap measurable instead of invisible: decode FIT
-without losing anything, decode TCX alongside it, and report exactly where the
-two disagree.
+Measured observations in this repository include GPX point subsampling,
+TCX timer-versus-elapsed time, missing fields in Huawei exports and the SWC
+corner values. They are corpus observations and are kept separate from the
+format capability report.
 
 ## Current delivery state
 
 [`docs/boundaries.md`](docs/boundaries.md) is the authoritative list of what
 this release provides and what it does not. CI fails if a capability is claimed
-there without an evidence file, so it cannot drift from the code.
+there without an evidence file, so it cannot drift from the code. The current
+fidelity command is an analysis report with `analysis_only=true`.
 
 ## Install
 
@@ -92,9 +94,25 @@ moonfit dump <f.fit>            JSONL of raw field values per data message
 moonfit roundtrip <in> <out>    structure-preserving re-encode (byte-exact)
 moonfit metrics <f.fit> [bounds] [window]   derived metrics (JSON)
 moonfit tcx <f.tcx>             TCX -> canonical model summary (JSON)
-moonfit diff <f.fit> <f.tcx>    FIT vs TCX divergence report (JSON)
+moonfit diff <f.fit> <f.tcx>    FIT vs TCX observed-divergence report (JSON)
+moonfit fidelity <f.fit> --target tcx|gpx|kml [--profile portable-core|standard-extended|loss-minimal]   profile report (JSON)
 moonfit redact <in> <out> [trim] [dlat] [dlon] [--strip-hr] [--report path]   native redaction
 ```
+
+## Fidelity profiles
+
+`moonfit fidelity` requires one explicit `--target` and accepts one of three strategies. `--profile` defaults to `portable-core`. `portable-core`
+uses target core fields and seven decimal places, and marks fields intentionally
+left out as `omitted`. `standard-extended` enables the standard extension
+locations named by the target format and uses nine decimal places for the
+coordinate estimate. `loss-minimal` models a named `moonfit` extension that
+would retain original FIT semicircles and activity values for an audit path.
+
+The command reports the selected strategy, `analysis_only=true`, `writer_available=false`, the maximum
+angle bound, the equator bound, the bound at the activity's mean latitude, each
+semantic's `status`, `policy`, `spec` and `reversible` flag. These values describe
+a conversion policy and its expected representation. `reversible` describes what the named profile would preserve if a writer were implemented; `writer_available=false` makes that boundary explicit. They are not evidence that
+an output writer exists. Writing TCX, GPX and KML remains outside this release.
 
 ## Verification
 

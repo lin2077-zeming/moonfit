@@ -141,3 +141,105 @@ test "P0-7: zero coordinate delta reports zero shifted fields" {
   assert_eq(r.lat_delta, 0L)
   assert_eq(r.lon_delta, 0L)
 }
+
+///|
+fn swc_fit() -> Bytes {
+  let body : Array[Byte] = []
+  for
+    x in [
+      0x40, 0, 0, 18, 0, 4, 29, 4, 0x85, 30, 4, 0x85, 31, 4, 0x85, 32, 4, 0x85,
+    ] {
+    body.push(rbb(x))
+  }
+  body.push(rbb(0x00))
+  ri32le(body, 100)
+  ri32le(body, -200)
+  ri32le(body, 0)
+  ri32le(body, 0)
+  body.push(rbb(0x00))
+  ri32le(body, 200)
+  ri32le(body, -300)
+  ri32le(body, 300)
+  ri32le(body, -400)
+  let hdr : Array[Byte] = [rbb(14), rbb(0x10), rbb(0xEA), rbb(0x07)]
+  ri32le(hdr, body.length())
+  for x in [0x2E, 0x46, 0x49, 0x54] {
+    hdr.push(rbb(x))
+  }
+  ru16(hdr, @fit.crc16(Bytes::from_array(hdr).clamped_view()))
+  let full : Array[Byte] = []
+  for x in hdr {
+    full.push(x)
+  }
+  for x in body {
+    full.push(x)
+  }
+  ru16(full, @fit.crc16(Bytes::from_array(full).clamped_view()))
+  Bytes::from_array(full)
+}
+
+///|
+test "R8: zero SWC sentinels stay zero while valid SWC coordinates shift" {
+  let (out, r) = @redact.redact_ex(swc_fit(), 0, 600000L, -800000L, false)
+  assert_eq(r.swc_zero_preserved, 2)
+  assert_eq(r.swc_nonzero_shifted, 2)
+  let msgs = @fit.data_messages(@fit.parse_messages(out))
+  assert_eq(msgs[0].fields[2].value, @fit.Signed(0L))
+  assert_eq(msgs[0].fields[3].value, @fit.Signed(0L))
+  assert_eq(msgs[1].fields[2].value, @fit.Signed(600300L))
+  assert_eq(msgs[1].fields[3].value, @fit.Signed(-800400L))
+}
+
+///|
+fn trim_compressed_fit() -> Bytes {
+  let body : Array[Byte] = []
+  // local0: timestamp + distance for the full record
+  for x in [0x40, 0, 0, 20, 0, 2, 253, 4, 0x86, 5, 4, 0x86] {
+    body.push(rbb(x))
+  }
+  body.push(rbb(0x00))
+  ri32le(body, 1000)
+  ri32le(body, 0)
+  // local1: compressed records omit timestamp from their definition
+  for x in [0x41, 0, 0, 20, 0, 1, 5, 4, 0x86] {
+    body.push(rbb(x))
+  }
+  body.push(rbb(0xB2))
+  ri32le(body, 1000)
+  body.push(rbb(0xBC))
+  ri32le(body, 2000)
+  let hdr : Array[Byte] = [rbb(14), rbb(0x10), rbb(0xEA), rbb(0x07)]
+  ri32le(hdr, body.length())
+  for x in [0x2E, 0x46, 0x49, 0x54] {
+    hdr.push(rbb(x))
+  }
+  ru16(hdr, @fit.crc16(Bytes::from_array(hdr).clamped_view()))
+  let full : Array[Byte] = []
+  for x in hdr {
+    full.push(x)
+  }
+  for x in body {
+    full.push(x)
+  }
+  ru16(full, @fit.crc16(Bytes::from_array(full).clamped_view()))
+  Bytes::from_array(full)
+}
+
+///|
+test "R9: trim anchors a kept compressed record with an absolute timestamp" {
+  let initial = @fit.data_messages(@fit.parse_messages(trim_compressed_fit()))
+  assert_eq(initial.length(), 3)
+  assert_eq(initial[1].timestamp, Some(1010L))
+  assert_eq(initial[1].fields.length(), 1)
+  assert_eq(initial[1].fields[0].def_num, 5)
+  let (out, r) = @redact.redact_ex(trim_compressed_fit(), 1, 0L, 0L, false)
+  assert_eq(r.trimmed_records, 2)
+  assert_eq(out.length(), 58)
+  assert_true(@fit.verify(out))
+  let parsed = @fit.parse_messages(out)
+  let data = @fit.data_messages(parsed)
+  assert_eq(data.length(), 1)
+  assert_eq(data[0].timestamp, Some(1010L))
+  assert_eq(data[0].ts_offset, None)
+  assert_eq(data[0].fields[0].def_num, 253)
+}

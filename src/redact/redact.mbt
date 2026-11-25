@@ -25,15 +25,20 @@ fn wrap32(v : Int64) -> Int64 {
 ///|
 fn is_lat(global : Int32, def : Int32) -> Bool {
   (global == 20 && def == 0) ||
-  (global == 18 && (def == 3 || def == 29)) ||
+  (global == 18 && (def == 3 || def == 29 || def == 31)) ||
   (global == 19 && (def == 3 || def == 5))
 }
 
 ///|
 fn is_lon(global : Int32, def : Int32) -> Bool {
   (global == 20 && def == 1) ||
-  (global == 18 && (def == 4 || def == 30)) ||
+  (global == 18 && (def == 4 || def == 30 || def == 32)) ||
   (global == 19 && (def == 4 || def == 6))
+}
+
+///|
+fn is_swc(global : Int32, def : Int32) -> Bool {
+  global == 18 && (def == 31 || def == 32)
 }
 
 ///|
@@ -52,6 +57,8 @@ pub(all) struct RedactReport {
   hr_stripped : Int32
   trimmed_records : Int32
   fields_changed : Int32
+  swc_zero_preserved : Int32
+  swc_nonzero_shifted : Int32
   lat_delta : Int64
   lon_delta : Int64
 }
@@ -76,11 +83,110 @@ pub fn report_json(r : RedactReport) -> String {
   r.trimmed_records.to_string() +
   ",\"fields_changed\":" +
   r.fields_changed.to_string() +
+  ",\"swc_zero_preserved\":" +
+  r.swc_zero_preserved.to_string() +
+  ",\"swc_nonzero_shifted\":" +
+  r.swc_nonzero_shifted.to_string() +
   ",\"lat_delta\":" +
   r.lat_delta.to_string() +
   ",\"lon_delta\":" +
   r.lon_delta.to_string() +
   "}"
+}
+
+///|
+fn absolute_timestamp_fields(
+  defs : @fit.Definition,
+  fields : Array[@fit.FieldValue],
+  timestamp : Int64,
+) -> Array[@fit.FieldValue]? {
+  let out : Array[@fit.FieldValue] = []
+  let mut found = false
+  for d in defs.fields {
+    if d.def_num == 253 {
+      if d.size != 4 {
+        return None
+      }
+      out.push({
+        def_num: 253,
+        value: @fit.Unsigned(timestamp.reinterpret_as_uint64()),
+        invalid: false,
+        raw: @fit.write_uint(timestamp.reinterpret_as_uint64(), 4, defs.endian),
+      })
+      found = true
+    } else {
+      let mut copied : @fit.FieldValue? = None
+      for f in fields {
+        if f.def_num == d.def_num {
+          copied = Some({
+            def_num: f.def_num,
+            value: f.value,
+            invalid: f.invalid,
+            raw: f.raw,
+          })
+        }
+      }
+      match copied {
+        Some(f) => out.push(f)
+        None => return None
+      }
+    }
+  }
+  if found {
+    Some(out)
+  } else {
+    None
+  }
+}
+
+///|
+fn has_timestamp_field(definition : @fit.Definition) -> Bool {
+  for f in definition.fields {
+    if f.def_num == 253 {
+      return true
+    }
+  }
+  false
+}
+
+///|
+fn timestamp_definition(
+  definition : @fit.Definition,
+  local_id : Int32,
+) -> @fit.Definition {
+  let fields : Array[@fit.FieldDef] = [
+    { def_num: 253, size: 4, base: @fit.Uint32, },
+  ]
+  for f in definition.fields {
+    fields.push(f)
+  }
+  {
+    local_id,
+    global: definition.global,
+    endian: definition.endian,
+    has_dev: definition.has_dev,
+    fields,
+    dev_fields: definition.dev_fields,
+  }
+}
+
+///|
+fn free_local_id(msgs : Array[@fit.Message]) -> Int32? {
+  let used : Array[Bool] = Array::make(16, false)
+  for m in msgs {
+    match m {
+      @fit.Def(d) => used[d.local_id] = true
+      @fit.Data(_) => ()
+    }
+  }
+  let mut i = 0
+  while i < used.length() {
+    if !used[i] {
+      return Some(i)
+    }
+    i = i + 1
+  }
+  None
 }
 
 ///|
@@ -102,6 +208,14 @@ pub fn redact_ex(
   let mut lat_shifted = 0
   let mut lon_shifted = 0
   let mut hr_stripped = 0
+  let mut swc_zero_preserved = 0
+  let mut swc_nonzero_shifted = 0
+  let mut output_ts : Int64? = None
+  let anchor_local_id : Int32? = if trim > 0 {
+    free_local_id(msgs)
+  } else {
+    None
+  }
   for m in msgs {
     match m {
       @fit.Def(d) => {
@@ -118,10 +232,11 @@ pub fn redact_ex(
           if dm.global == 20 {
             kept = kept + 1
           }
-          let e = match defs[dm.local_id] {
-            Some(d) => d.endian
-            None => @fit.Little
+          let definition = match defs[dm.local_id] {
+            Some(d) => d
+            None => raise @fit.FitError::NoDefinition(dm.local_id)
           }
+          let e = definition.endian
           let nf : Array[@fit.FieldValue] = []
           for f in dm.fields {
             let mut raw = f.raw
@@ -135,17 +250,26 @@ pub fn redact_ex(
               (is_lat(dm.global, f.def_num) || is_lon(dm.global, f.def_num)) {
               let delta = if is_lat(dm.global, f.def_num) { dlat } else { dlon }
               let v = @fit.read_uint(raw, 0, 4, e).reinterpret_as_int64()
-              raw = @fit.write_uint(
-                wrap32(v + delta).reinterpret_as_uint64(),
-                4,
-                e,
-              )
-              if is_lat(dm.global, f.def_num) {
-                if dlat != 0L {
-                  lat_shifted = lat_shifted + 1
+              if is_swc(dm.global, f.def_num) && v == 0L {
+                // The corpus contains a vendor-written zero SWC value. Keep
+                // that known sentinel and report it, while shifting valid SWC.
+                swc_zero_preserved = swc_zero_preserved + 1
+              } else {
+                raw = @fit.write_uint(
+                  wrap32(v + delta).reinterpret_as_uint64(),
+                  4,
+                  e,
+                )
+                if is_swc(dm.global, f.def_num) && delta != 0L {
+                  swc_nonzero_shifted = swc_nonzero_shifted + 1
                 }
-              } else if dlon != 0L {
-                lon_shifted = lon_shifted + 1
+                if is_lat(dm.global, f.def_num) {
+                  if dlat != 0L {
+                    lat_shifted = lat_shifted + 1
+                  }
+                } else if dlon != 0L {
+                  lon_shifted = lon_shifted + 1
+                }
               }
             }
             nf.push({
@@ -155,13 +279,57 @@ pub fn redact_ex(
               raw,
             })
           }
+          let mut final_local_id = dm.local_id
+          let needs_anchor = trim > 0 &&
+            dm.ts_offset != None &&
+            output_ts == None
+          let final_fields = if needs_anchor {
+            match dm.timestamp {
+              Some(ts) => {
+                let anchored_definition = if has_timestamp_field(definition) {
+                  definition
+                } else {
+                  match anchor_local_id {
+                    Some(local_id) => {
+                      let d = timestamp_definition(definition, local_id)
+                      out.push(@fit.Def(d))
+                      final_local_id = local_id
+                      d
+                    }
+                    None =>
+                      raise @fit.FitError::Truncated(
+                        "no free local message id for timestamp anchor",
+                      )
+                  }
+                }
+                match absolute_timestamp_fields(anchored_definition, nf, ts) {
+                  Some(fs) => fs
+                  None =>
+                    raise @fit.FitError::Truncated(
+                      "cannot anchor compressed timestamp after trim",
+                    )
+                }
+              }
+              None =>
+                raise @fit.FitError::Truncated(
+                  "compressed record has no absolute timestamp",
+                )
+            }
+          } else {
+            nf
+          }
+          let final_offset = if needs_anchor { None } else { dm.ts_offset }
+          match dm.timestamp {
+            Some(ts) => output_ts = Some(ts)
+            None => ()
+          }
           out.push(
             @fit.Data({
-              local_id: dm.local_id,
+              local_id: final_local_id,
               global: dm.global,
-              fields: nf,
+              fields: final_fields,
               dev_data: dm.dev_data,
-              ts_offset: dm.ts_offset,
+              ts_offset: final_offset,
               timestamp: dm.timestamp,
             }),
           )
@@ -176,6 +344,8 @@ pub fn redact_ex(
     hr_stripped,
     trimmed_records: total_records - kept,
     fields_changed: serial_zeroed + lat_shifted + lon_shifted + hr_stripped,
+    swc_zero_preserved,
+    swc_nonzero_shifted,
     lat_delta: dlat,
     lon_delta: dlon,
   }

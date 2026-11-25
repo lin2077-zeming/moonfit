@@ -23,7 +23,7 @@ fn value_json(v : @fit.BaseValue, invalid : Bool) -> String {
     }
     @fit.Signed(x) => if invalid { "null" } else { x.to_string() }
     @fit.Unsigned(x) => if invalid { "null" } else { x.to_string() }
-    @fit.Real(d) => if invalid { "null" } else { d.to_string() }
+    @fit.Real(d) => if invalid { "null" } else { @json.json_double(d) }
     @fit.Text(t) => if invalid { "null" } else { @json.json_string(t) }
     @fit.Raw(b) => if invalid { "null" } else { "\"raw:\{b.length()}\"" }
   }
@@ -109,10 +109,101 @@ fn run_roundtrip(argv : Array[String]) -> Int32 {
 }
 
 ///|
-fn to_int_def(s : String, def : Int32) -> Int32 {
-  @string.parse_int(s) catch {
-    _ => def
+
+///|
+fn path_key(s : String) -> String {
+  // The CLI must reject the common Windows aliases before it writes. This
+  // intentionally normalises separators, dot components, and ASCII case
+  // without adding a path runtime dependency.
+  let parts : Array[String] = []
+  let mut cur = ""
+  for c in s {
+    let sep = c == '/' || c == '\\'
+    if sep {
+      if cur != "" && cur != "." {
+        if cur == ".." {
+          if parts.length() > 0 {
+            let _ = parts.pop()
+          }
+        } else {
+          parts.push(cur)
+        }
+      }
+      cur = ""
+    } else {
+      cur = cur + c.to_string()
+    }
   }
+  if cur != "" && cur != "." {
+    if cur == ".." {
+      if parts.length() > 0 {
+        let _ = parts.pop()
+      }
+    } else {
+      parts.push(cur)
+    }
+  }
+  let mut out = ""
+  let mut i = 0
+  for part in parts {
+    if i > 0 {
+      out = out + "/"
+    }
+    for c in part {
+      let lower = match c {
+        'A' => 'a'
+        'B' => 'b'
+        'C' => 'c'
+        'D' => 'd'
+        'E' => 'e'
+        'F' => 'f'
+        'G' => 'g'
+        'H' => 'h'
+        'I' => 'i'
+        'J' => 'j'
+        'K' => 'k'
+        'L' => 'l'
+        'M' => 'm'
+        'N' => 'n'
+        'O' => 'o'
+        'P' => 'p'
+        'Q' => 'q'
+        'R' => 'r'
+        'S' => 's'
+        'T' => 't'
+        'U' => 'u'
+        'V' => 'v'
+        'W' => 'w'
+        'X' => 'x'
+        'Y' => 'y'
+        'Z' => 'z'
+        _ => c
+      }
+      out = out + lower.to_string()
+    }
+    i = i + 1
+  }
+  out
+}
+
+///|
+fn same_path(a : String, b : String) -> Bool {
+  path_key(a) == path_key(b)
+}
+
+///|
+fn parse_offset(s : String, name : String) -> Int64? {
+  let v = @string.parse_int64(s) catch {
+    _ => {
+      eprintln("moonfit: \{name} must be a signed 32-bit integer: \{s}")
+      return None
+    }
+  }
+  if v < -2147483648L || v > 2147483647L {
+    eprintln("moonfit: \{name} is outside the signed 32-bit range: \{s}")
+    return None
+  }
+  Some(v)
 }
 
 ///|
@@ -245,13 +336,9 @@ fn run_tcx(argv : Array[String]) -> Int32 {
   }
   let avghr = opt_i32_json(a.avg_hr)
   let maxhr = opt_i32_json(a.max_hr)
-  let mut pj = ""
-  let mut pi = 0
+  let point_jsons : Array[String] = []
   for pt in a.points {
-    if pi > 0 {
-      pj = pj + ","
-    }
-    pj = pj +
+    point_jsons.push(
       "{\"ts\":" +
       pt.timestamp.to_string() +
       ",\"lat\":" +
@@ -268,9 +355,10 @@ fn run_tcx(argv : Array[String]) -> Int32 {
       opt_i32_json(pt.heart_rate) +
       ",\"cad\":" +
       opt_i32_json(pt.cadence) +
-      "}"
-    pi = pi + 1
+      "}",
+    )
   }
+  let pj = point_jsons.join(",")
   println(
     "{\"sport\":" +
     @json.json_string(a.sport) +
@@ -355,6 +443,9 @@ fn run_redact(argv : Array[String]) -> Int32 {
         eprintln("moonfit: --report needs a path")
         return 2
       }
+    } else if a.has_prefix("--") {
+      eprintln("moonfit: unknown option \{a}")
+      return 2
     } else {
       pos.push(a)
     }
@@ -364,6 +455,22 @@ fn run_redact(argv : Array[String]) -> Int32 {
     eprintln(
       "moonfit: redact needs <in.fit> <out.fit> [trim] [dlat] [dlon] [--strip-hr] [--report path]",
     )
+    return 2
+  }
+  if pos.length() > 5 {
+    eprintln("moonfit: redact takes at most five positional arguments")
+    return 2
+  }
+  match report_path {
+    Some(rp) =>
+      if same_path(pos[0], rp) || same_path(pos[1], rp) {
+        eprintln("moonfit: input, output and report paths must be different")
+        return 2
+      }
+    None => ()
+  }
+  if same_path(pos[0], pos[1]) {
+    eprintln("moonfit: input and output paths must be different")
     return 2
   }
   let trim = if pos.length() > 2 {
@@ -382,12 +489,18 @@ fn run_redact(argv : Array[String]) -> Int32 {
     0
   }
   let dlat = if pos.length() > 3 {
-    to_int_def(pos[3], 600000).to_int64()
+    match parse_offset(pos[3], "latitude offset") {
+      Some(v) => v
+      None => return 2
+    }
   } else {
     600000L
   }
   let dlon = if pos.length() > 4 {
-    to_int_def(pos[4], -800000).to_int64()
+    match parse_offset(pos[4], "longitude offset") {
+      Some(v) => v
+      None => return 2
+    }
   } else {
     -800000L
   }
@@ -403,12 +516,6 @@ fn run_redact(argv : Array[String]) -> Int32 {
       return 2
     }
   }
-  @fs.write_bytes_to_file(pos[1], out) catch {
-    @fs.IOError(_) => {
-      eprintln("moonfit: cannot write \{pos[1]}")
-      return 2
-    }
-  }
   match report_path {
     Some(rp) =>
       @fs.write_string_to_file(rp, @redact.report_json(report)) catch {
@@ -418,6 +525,12 @@ fn run_redact(argv : Array[String]) -> Int32 {
         }
       }
     None => ()
+  }
+  @fs.write_bytes_to_file(pos[1], out) catch {
+    @fs.IOError(_) => {
+      eprintln("moonfit: cannot write \{pos[1]}")
+      return 2
+    }
   }
   0
 }
@@ -495,18 +608,40 @@ fn run_info(argv : Array[String]) -> Int32 {
 ///|
 fn run_fidelity(argv : Array[String]) -> Int32 {
   let mut target = "tcx"
+  let mut profile = "portable-core"
+  let mut target_seen = false
+  let mut profile_seen = false
   let mut path : String? = None
   let mut i = 1
   while i < argv.length() {
     let a = argv[i]
     if a == "--target" {
+      if target_seen {
+        eprintln("moonfit: duplicate --target")
+        return 2
+      }
       i = i + 1
-      if i < argv.length() {
-        target = argv[i]
-      } else {
+      if i >= argv.length() || argv[i].has_prefix("--") {
         eprintln("moonfit: --target needs a value")
         return 2
       }
+      target = argv[i]
+      target_seen = true
+    } else if a == "--profile" {
+      if profile_seen {
+        eprintln("moonfit: duplicate --profile")
+        return 2
+      }
+      i = i + 1
+      if i >= argv.length() || argv[i].has_prefix("--") {
+        eprintln("moonfit: --profile needs a value")
+        return 2
+      }
+      profile = argv[i]
+      profile_seen = true
+    } else if a.has_prefix("--") {
+      eprintln("moonfit: unknown option \{a}")
+      return 2
     } else if path == None {
       path = Some(a)
     } else {
@@ -515,12 +650,22 @@ fn run_fidelity(argv : Array[String]) -> Int32 {
     }
     i = i + 1
   }
+  if !target_seen {
+    eprintln("moonfit: fidelity requires --target tcx|gpx|kml")
+    return 2
+  }
   let p = match path {
     Some(x) => x
     None => {
       eprintln("moonfit: fidelity needs a file argument")
       return 2
     }
+  }
+  if !@fidelity.is_profile(profile) {
+    eprintln(
+      "moonfit: unknown profile '\{profile}' (use portable-core, standard-extended or loss-minimal)",
+    )
+    return 2
   }
   let data = @fs.read_file_to_bytes(p) catch {
     @fs.IOError(_) => {
@@ -534,7 +679,7 @@ fn run_fidelity(argv : Array[String]) -> Int32 {
       return 2
     }
   }
-  match @fidelity.report(act, target) {
+  match @fidelity.report_with_profile(act, target, profile) {
     Some(r) => {
       println(@fidelity.to_json(r))
       0

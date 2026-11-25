@@ -40,7 +40,7 @@ endpoint against a pinned profile-20.74 field reference.
 | Derived metrics (device + GPS distance, three-way time, pace, per-km splits, smoothing-window ascent, caller-defined HR zones) and Gate G4 vs an independent Karney reference | `scripts/check_g4.py` |
 | TCX decoding into the same canonical model (BOM + namespace tolerance, iGPSPORT/Huawei variants, non-standard Sport normalisation), cross-checked on all 14 corpus .tcx against an independent XML parse | `scripts/check_tcx.py` |
 | FIT vs TCX observed-divergence report (vendor export observations L1/L6 and defect B1) cross-checked on all 6 pairs against an independent reference (Gate G5); a retrospective comparison of two specific exports, not a predictive conversion model | `scripts/check_g5.py` |
-| Spec-derived format fidelity loss budget (`moonfit fidelity`) for TCX/GPX/KML from each format's own schema, quantified per activity and excluding vendor export behaviour | `src/fidelity/fidelity_test.mbt` |
+| Profile-based format capability report (`moonfit fidelity`) for TCX/GPX/KML. It accepts `portable-core`, `standard-extended` and `loss-minimal`, reports `analysis_only=true`, `writer_available=false`, coordinate bounds and semantic status/policy/spec/reversibility, and excludes vendor export behaviour | `scripts/check_fidelity.py` |
 | Pinned FIT protocol 1.0 / profile 20.74 complete-support endpoint gate: 8 activity messages and the 140-field set verified against a pinned reference | `scripts/check_profile.py` |
 | Native FIT redaction (zero serial, exact semicircle coordinate shift, optional record trim, optional `--strip-hr`, machine-readable `--report`) that reproduces the committed corpus byte-for-byte from raw exports and is idempotent + structure-preserving | `scripts/check_redact.py` |
 | Robustness: typed errors for truncation / bad signature / bad header size / header-CRC / missing definition / unknown base type / overlong field, and a full single-byte mutation sweep rejected on all four backends (Gate G6) | `src/fit/fit_test.mbt` |
@@ -51,6 +51,22 @@ endpoint against a pinned profile-20.74 field reference.
 | Corpus redaction tooling that zeroes the device serial, shifts coordinates by an exact semicircle offset and recomputes the CRC, with a self-test proving no other byte changes | `scripts/redact_corpus.py` |
 | Fourteen redacted real activities with a provenance manifest and checksums | `corpus/redacted/manifest.csv` |
 | Corpus provenance and CC0 dedication, with the redaction offset and the list of fields deliberately left unmodified | `corpus/README.md` |
+
+## Fidelity profile contract
+
+`moonfit fidelity <fit> --target tcx|gpx|kml [--profile <profile>]` produces a
+JSON capability report. `--target` is required and `--profile` defaults to
+`portable-core`. `portable-core` estimates target core fields with seven
+fractional coordinate digits. `standard-extended` models the target's named
+standard extension locations and nine fractional coordinate digits.
+`loss-minimal` models a named `moonfit` extension that carries original FIT
+semicircles and audit fields. The report states the chosen strategy in every
+loss entry, includes `writer_available=false`, and includes the coordinate angle bound, the equator distance bound,
+and the distance bound at the activity mean latitude.
+
+A profile is a policy input to the report. The release contains the FIT and TCX
+readers plus the report generator. The target-format write paths are outside the
+current release boundary and are not required by the report evidence.
 
 ## Known limitations
 

@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -63,10 +65,18 @@ def cases(version: str):
         (["--version"], 0, lambda o, v=version: o.strip() == v, lambda e: e == ""),
         (["units"], 0, lambda o: "semicircles" in o and "631065600" in o, lambda e: e == ""),
         (["bogus"], 2, lambda o: o == "", lambda e: "unexpected value" in e or "unknown" in e),
-        (["--help"], 0, lambda o: "Usage:" in o and "units" in o, lambda e: e == ""),
+        (["--help"], 0, lambda o: "Usage:" in o and "units" in o and "fidelity" in o and "portable-core" in o, lambda e: e == ""),
         (["help"], 0, lambda o: "Usage:" in o, lambda e: e == ""),
         (["version", "extra"], 2, lambda o: True, lambda e: e != ""),
         (["dump", str(CORPUS / "ride-20260803.fit")], 0, lambda o: '"g":20' in o, lambda e: e == ""),
+        (["fidelity", str(CORPUS / "ride-20260803.fit"), "--target", "tcx", "--profile", "portable-core"], 0, lambda o: '"target":"tcx"' in o and '"analysis_only":true' in o, lambda e: e == ""),
+        (["fidelity", str(CORPUS / "ride-20260803.fit"), "--profile", "portable-core"], 2, lambda o: o == "", lambda e: "requires --target" in e),
+        (["fidelity", str(CORPUS / "ride-20260803.fit"), "--target", "tcx", "--target", "gpx", "--profile", "portable-core"], 2, lambda o: o == "", lambda e: "duplicate --target" in e),
+        (["fidelity", str(CORPUS / "ride-20260803.fit"), "--target", "tcx", "--profile", "portable-core", "--profile", "loss-minimal"], 2, lambda o: o == "", lambda e: "duplicate --profile" in e),
+        (["fidelity", str(CORPUS / "ride-20260803.fit"), "--target"], 2, lambda o: o == "", lambda e: "--target needs a value" in e),
+        (["fidelity", str(CORPUS / "ride-20260803.fit"), "--target", "--profile", "portable-core"], 2, lambda o: o == "", lambda e: "--target needs a value" in e),
+        (["fidelity", str(CORPUS / "ride-20260803.fit"), "--profile"], 2, lambda o: o == "", lambda e: "--profile needs a value" in e),
+        (["fidelity", "--target", "tcx", "--profile", "portable-core", str(CORPUS / "ride-20260803.fit")], 0, lambda o: "target" in o, lambda e: e == ""),
         (["dump"], 2, lambda o: o == "", lambda e: "needs a file" in e),
         (["roundtrip"], 2, lambda o: o == "", lambda e: "needs" in e),
         (["metrics"], 2, lambda o: o == "", lambda e: "needs a file" in e),
@@ -81,6 +91,105 @@ def cases(version: str):
         (["metrics", str(CORPUS / "ride-20260803.fit"), "100,120", "-1"], 2, lambda o: o == "", lambda e: "window" in e),
         (["redact", "in.fit", "out.fit", "-1"], 2, lambda o: o == "", lambda e: "trim" in e),
     ]
+
+
+def redact_contracts() -> list[str]:
+    """Exercise path and numeric validation at the native CLI boundary."""
+    failures: list[str] = []
+    source = CORPUS / "ride-20260803.fit"
+
+    def check(label: str, args: list[str], code: int, stderr: str, absent: list[Path] = None):
+        proc = run(args)
+        if proc.returncode != code:
+            failures.append(f"[{label}] exit {proc.returncode}, expected {code}")
+        if stderr and stderr not in proc.stderr:
+            failures.append(f"[{label}] stderr missing {stderr!r}: {proc.stderr[:160]!r}")
+        for path in absent or []:
+            if path.exists():
+                failures.append(f"[{label}] wrote forbidden output {path}")
+
+    with tempfile.TemporaryDirectory(prefix="moonfit-smoke-") as raw:
+        temp = Path(raw)
+        input_path = temp / "input.fit"
+        shutil.copyfile(source, input_path)
+        original = input_path.read_bytes()
+
+        check("same input/output", ["redact", str(input_path), str(input_path)], 2, "paths must be different")
+        if input_path.read_bytes() != original:
+            failures.append("[same input/output] changed the input file")
+
+        alias = os.path.join(str(temp), ".", "input.fit")
+        check("dot alias", ["redact", str(input_path), alias], 2, "paths must be different")
+        if input_path.read_bytes() != original:
+            failures.append("[dot alias] changed the input file")
+
+        if os.name == "nt":
+            check("case alias", ["redact", str(input_path), str(input_path).upper()], 2, "paths must be different")
+            if input_path.read_bytes() != original:
+                failures.append("[case alias] changed the input file")
+
+        report_same_input = temp / "report-input.json"
+        shutil.copyfile(source, report_same_input)
+        check(
+            "report/input collision",
+            ["redact", str(report_same_input), str(temp / "out.fit"), "0", "0", "0", "--report", str(report_same_input)],
+            2,
+            "paths must be different",
+            [temp / "out.fit"],
+        )
+        if report_same_input.read_bytes() != original:
+            failures.append("[report/input collision] changed the input file")
+
+        out = temp / "out.fit"
+        report = temp / "report.json"
+        check(
+            "explicit zero offsets",
+            ["redact", str(input_path), str(out), "0", "0", "0", "--report", str(report)],
+            0,
+            "",
+        )
+        if not out.exists() or not report.exists():
+            failures.append("[explicit zero offsets] did not create both outputs")
+
+        invalid_values = ["not-an-int", "2147483648", "-2147483649", ""]
+        for value in invalid_values:
+            candidate = temp / f"invalid-{len(value)}.fit"
+            check(
+                f"invalid latitude {value!r}",
+                ["redact", str(input_path), str(candidate), "0", value, "0"],
+                2,
+                "latitude offset",
+                [candidate],
+            )
+        check(
+            "invalid longitude",
+            ["redact", str(input_path), str(temp / "invalid-longitude.fit"), "0", "0", "not-an-int"],
+            2,
+            "longitude offset",
+            [temp / "invalid-longitude.fit"],
+        )
+        check(
+            "unknown option",
+            ["redact", str(input_path), str(temp / "unknown-option.fit"), "--strp-hr"],
+            2,
+            "unknown option",
+            [temp / "unknown-option.fit"],
+        )
+        check(
+            "extra positional",
+            ["redact", str(input_path), str(temp / "extra.fit"), "0", "0", "0", "extra"],
+            2,
+            "at most five positional",
+            [temp / "extra.fit"],
+        )
+        check(
+            "report/output collision",
+            ["redact", str(input_path), str(temp / "same-report.fit"), "0", "0", "0", "--report", str(temp / "same-report.fit")],
+            2,
+            "paths must be different",
+            [temp / "same-report.fit"],
+        )
+    return failures
 
 
 def evaluate(version: str, expect_override: dict | None = None) -> list[str]:
@@ -104,7 +213,7 @@ def evaluate(version: str, expect_override: dict | None = None) -> list[str]:
 
 def self_test() -> int:
     version = module_version()
-    baseline = evaluate(version)
+    baseline = evaluate(version) + redact_contracts()
     if baseline:
         print("  FAIL baseline run is not clean, cannot self-test:")
         for item in baseline:
@@ -135,14 +244,14 @@ def main(argv: list[str]) -> int:
         print("smoke_cli self-test (R4: verify the ruler first)")
         return self_test()
     version = module_version()
-    failures = evaluate(version)
+    failures = evaluate(version) + redact_contracts()
     if failures:
         print("CLI contract smoke test FAILED:")
         for item in failures:
             print(f"  - {item}")
         return 1
     print(
-        f"CLI contract smoke test OK: {len(cases(version))} cases, "
+        f"CLI contract smoke test OK: {len(cases(version)) + (13 if os.name == 'nt' else 12)} cases, "
         f"version {version}, binary {EXE.name}."
     )
     return 0

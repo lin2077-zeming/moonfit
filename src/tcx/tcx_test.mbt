@@ -144,3 +144,33 @@ test "P1-6: lap missing distance/time falls back to trackpoints" {
   assert_eq(t.activity.laps[0].distance_m, 500.0)
   assert_eq(t.activity.laps[0].timer_s, 44.0)
 }
+
+///|
+fn tcx_mixed_lap_distance() -> Bytes {
+  @utf8.encode(
+    "<?xml version='1.0'?><TrainingCenterDatabase><Activities><Activity Sport='Biking'><Id>2026-08-03T10:40:06Z</Id><Lap StartTime='2026-08-03T10:40:06Z'><TotalTimeSeconds>10</TotalTimeSeconds><DistanceMeters>1000</DistanceMeters><Track><Trackpoint><Time>2026-08-03T10:40:06Z</Time><DistanceMeters>0</DistanceMeters></Trackpoint><Trackpoint><Time>2026-08-03T10:40:10Z</Time><DistanceMeters>1000</DistanceMeters></Trackpoint></Track></Lap><Lap StartTime='2026-08-03T10:40:16Z'><TotalTimeSeconds>10</TotalTimeSeconds><Track><Trackpoint><Time>2026-08-03T10:40:16Z</Time><DistanceMeters>1000</DistanceMeters></Trackpoint><Trackpoint><Time>2026-08-03T10:40:26Z</Time><DistanceMeters>2000</DistanceMeters></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>",
+  )
+}
+
+///|
+test "R3: invalid calendar date and empty activity are malformed" {
+  assert_true(
+    raises_malformed(tcx_tp_field("<Time>2026-02-30T10:00:00Z</Time>")),
+  )
+  assert_true(
+    raises_malformed(
+      @utf8.encode(
+        "<?xml version='1.0'?><TrainingCenterDatabase><Notes>hello</Notes></TrainingCenterDatabase>",
+      ),
+    ),
+  )
+}
+
+///|
+test "R4: missing lap distance uses per-lap track distance delta" {
+  let t = @tcx.parse(tcx_mixed_lap_distance())
+  assert_eq(t.activity.laps.length(), 2)
+  assert_eq(t.activity.laps[0].distance_m, 1000.0)
+  assert_eq(t.activity.laps[1].distance_m, 1000.0)
+  assert_eq(t.activity.device_distance_m, 2000.0)
+}

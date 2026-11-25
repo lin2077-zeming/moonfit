@@ -1,5 +1,5 @@
 ///|
-pub let moonfit_version : String = "0.4.0"
+pub let moonfit_version : String = "0.5.0"
 
 ///|
 fn build_command() -> @argparse.Command {
@@ -12,6 +12,10 @@ fn build_command() -> @argparse.Command {
       @argparse.Command(
         "units",
         about="Print the FIT wire-unit table and the independent source of each G7 constant",
+      ),
+      @argparse.Command(
+        "fidelity",
+        about="Profile report for --target tcx|gpx|kml; --profile portable-core|standard-extended|loss-minimal, default portable-core; analysis-only",
       ),
     ],
   )

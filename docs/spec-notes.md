@@ -109,18 +109,34 @@ time, recorded in FIT as 24 pairs of `timer start` and `timer stop` events.
 TCX, GPX and KML all carry the 5355 s figure and none of them carries anything
 that indicates the other 913 s existed.
 
-## Format-inherent limitations (spec-derived)
+## Format capability profiles (spec-derived)
 
-Distinct from the vendor observations above, `src/fidelity` derives from each
-target format's OWN schema (TCX v2 XSD, GPX 1.1 XSD, KML 2.2) which FIT semantics
-the format cannot represent, or can only represent via an extension or at reduced
-precision: auto-pause/timer events and device serial are unrepresentable in all
-three; coordinates are decimal degrees rather than semicircles; heart rate,
-cadence, power and speed need the TCX TPX or GPX gpxtpx extensions and have no
-structured KML form; cumulative distance has no GPX/KML element. `moonfit fidelity`
-reports this spec-derived loss budget per target format, quantified per activity
-(e.g. pause seconds = elapsed - timer). It deliberately excludes vendor export
-behaviour, which is recorded in the two observation sections here.
+Distinct from the vendor observations above, `src/fidelity` derives a capability
+report from each target format's schema and the selected profile. The report
+currently names TCX v2 XSD, GPX 1.1 XSD and KML 2.2 schema references. It does
+not choose a single universal conversion result.
+
+`portable-core` uses target core fields, seven decimal coordinate digits and no
+vendor or community extension. A semantic that the core policy leaves out has
+status `omitted`. `standard-extended` models TCX TPX, GPX TrackPointExtension and
+explicit KML ExtendedData keys where the target convention supplies a named
+container. Core altitude is not a format loss: TCX `AltitudeMeters`, GPX `ele`, and KML altitude coordinates can carry enhanced altitude as an exact metre value in the profile model. `loss-minimal` models a named `moonfit` extension that retains the
+original FIT semicircle and audit fields for a later verification path.
+
+FIT semicircles are converted to decimal degrees by the protocol unit formula
+`angle_deg = semicircle * 180 / 2^31`. The unit conversion has no loss entry by
+itself. A finite decimal policy reports `rounded`, the configured fractional
+digit count and the bound `0.5 * 10^-d` degrees. The report converts that angle
+bound to metres at the equator and at the activity mean latitude. A named raw
+semicircle extension reports `extension_preserved` and `reversible=true` in the
+profile model.
+
+The report also distinguishes `exact`, `rounded`, `extension_preserved`,
+`omitted` and `unsupported`. `moonfit fidelity` is analysis-only in this release
+and returns `analysis_only=true` and `writer_available=false`. The `reversible` flag describes what the named profile would preserve if a writer were implemented; it does not claim that the current CLI can write or read back an extension. The command models a target profile and does
+not produce TCX, GPX or KML output. Vendor choices such as point subsampling or
+missing Huawei fields remain observations in the sections above and do not enter
+this profile-derived loss model.
 
 ## Device defects found in the corpus
 

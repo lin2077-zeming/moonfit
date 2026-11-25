@@ -54,16 +54,23 @@ the corpus has a recorded disposition. A field that is silently dropped fails
 the gate, which is what prevents a single lucky sample from standing in for the
 whole space.
 
-**G-fidelity — spec-derived loss budget.** `moonfit fidelity` reports, per target
-format, the FIT semantics that format's own schema cannot represent (each entry
-cites the spec), quantified per activity. Cross-checked against an independent
-fitparse read of the session; vendor export behaviour must not appear as a format
-loss.
+**G-fidelity — profile-based capability report.** `moonfit fidelity` runs each
+corpus FIT file against TCX, GPX and KML with `portable-core`,
+`standard-extended` and `loss-minimal`. The gate independently checks the
+selected profile, `analysis_only=true`, `writer_available=false`, coordinate digit policy, the angle and
+metre bounds at the equator and mean activity latitude, the fixed status set,
+semantic policy/spec text and the reversible flag. Every semantic cites its
+format reference. Vendor export behaviour is excluded from the profile model.
 
 **G-profile — pinned complete-support endpoint.** Every corpus file declares FIT
 protocol 1.0 / profile 20.74; the eight activity message types and the pinned
 140-field set are decoded with no silent drop and no undeclared field, against a
 checked-in profile reference.
+
+**G-tcx-serialization — linear output construction.** The TCX CLI collects
+per-point JSON fragments and joins them once. The gate checks this output shape
+and the corpus cross-check checks every emitted point. This keeps long-track
+serialization from repeatedly copying the accumulated output string.
 
 ## Rules that apply to all gates
 

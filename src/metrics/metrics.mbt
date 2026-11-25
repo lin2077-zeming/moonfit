@@ -117,19 +117,16 @@ fn computed_ascent(alts : Array[Double], window : Int32) -> Double {
     return 0.0
   }
   let win = if window < 1 { 1 } else { window }
+  let prefix : Array[Double] = [0.0]
+  for altitude in alts {
+    prefix.push(prefix[prefix.length() - 1] + altitude)
+  }
   let smooth : Array[Double] = []
   let mut i = 0
   while i < alts.length() {
     let start = if i - win + 1 > 0 { i - win + 1 } else { 0 }
-    let mut sum = 0.0
-    let mut n = 0
-    let mut j = start
-    while j <= i {
-      sum = sum + alts[j]
-      n = n + 1
-      j = j + 1
-    }
-    smooth.push(sum / n.to_double())
+    let n = i - start + 1
+    smooth.push((prefix[i + 1] - prefix[start]) / n.to_double())
     i = i + 1
   }
   let mut asc = 0.0
@@ -234,22 +231,40 @@ fn splits(points : Array[@model.TrackPoint]) -> (Array[Split], Bool) {
           next_km = @math.floor(d / 1000.0).to_int() + 1
           last_boundary_t = p.timestamp
           initialized = true
-        } else if d > prev_d {
-          if d - prev_d > max_jump_m {
-            truncated = true
-          } else {
-            while next_km.to_double() * 1000.0 <= d {
-              let ratio = (next_km.to_double() * 1000.0 - prev_d) / (d - prev_d)
-              let boundary_t = prev_t +
-                round_i64(ratio * (p.timestamp - prev_t).to_double())
-              out.push({
-                index: next_km,
-                end_distance_m: next_km.to_double() * 1000.0,
-                time_s: boundary_t - last_boundary_t,
-              })
-              last_boundary_t = boundary_t
-              next_km = next_km + 1
+        } else if d < prev_d || p.timestamp < prev_t {
+          // A reset or clock reversal cannot be interpolated against the old
+          // segment. Start a new local segment at the current observation.
+          prev_d = d
+          prev_t = p.timestamp
+          next_km = @math.floor(d / 1000.0).to_int() + 1
+          last_boundary_t = p.timestamp
+        } else if d == prev_d {
+          // A distance plateau belongs to the latest timestamp. If the next
+          // point crosses a boundary, interpolation starts at this point.
+          prev_t = p.timestamp
+        } else if d - prev_d > max_jump_m {
+          truncated = true
+          break
+        } else {
+          while next_km.to_double() * 1000.0 <= d {
+            let ratio = (next_km.to_double() * 1000.0 - prev_d) / (d - prev_d)
+            let boundary_t = prev_t +
+              round_i64(ratio * (p.timestamp - prev_t).to_double())
+            let split_time = boundary_t - last_boundary_t
+            if split_time < 0L {
+              truncated = true
+              break
             }
+            out.push({
+              index: next_km,
+              end_distance_m: next_km.to_double() * 1000.0,
+              time_s: split_time,
+            })
+            last_boundary_t = boundary_t
+            next_km = next_km + 1
+          }
+          if truncated {
+            break
           }
           prev_d = d
           prev_t = p.timestamp

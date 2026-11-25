@@ -24,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "_build" / "native" / "release" / "build" / "cmd" / "moonfit"
 CORPUS = ROOT / "corpus" / "redacted"
+SOURCE = ROOT / "cmd" / "moonfit" / "dump.mbt"
 FIT_EPOCH = 631065600
 
 
@@ -124,6 +125,16 @@ def reference(path):
     }
 
 
+def serialization_shape():
+    """Reject the old quadratic point-string accumulation pattern."""
+    source = SOURCE.read_text(encoding="utf-8")
+    return (
+        "let point_jsons : Array[String] = []" in source
+        and "let pj = point_jsons.join(\",\")" in source
+        and "pj = pj +" not in source
+    )
+
+
 def moon(exe, path):
     p = subprocess.run([str(exe), "tcx", str(path)], capture_output=True, text=True)
     if p.returncode != 0:
@@ -169,7 +180,9 @@ def self_test(exe):
     bad = compare({**m, "n_points": m["n_points"] + 1}, r)
     ok = len(bad) >= 1
     print(f"  {'ok  ' if ok else 'FAIL'} comparator detects injected mismatch ({len(bad)})")
-    return 0 if ok else 1
+    shape_ok = serialization_shape()
+    print(f"  {'ok  ' if shape_ok else 'FAIL'} TCX point serialization uses linear join")
+    return 0 if ok and shape_ok else 1
 
 
 def main(argv):
@@ -183,6 +196,9 @@ def main(argv):
         print("check_tcx self-test (R4: verify the ruler first)")
         return self_test(exe)
     failures = []
+    if not serialization_shape():
+        print("TCX gate FAILED: point serialization must collect then join")
+        return 1
     n = 0
     for path in sorted(CORPUS.glob("*.tcx")):
         m = moon(exe, path)

@@ -53,13 +53,6 @@ fn local_name(q : String) -> String {
 }
 
 ///|
-fn to_int(s : String) -> Int64 {
-  @string.parse_int64(s) catch {
-    _ => 0L
-  }
-}
-
-///|
 fn parse_i64_strict(s : String) -> Int64 raise TcxError {
   @string.parse_int64(s) catch {
     _ => raise TcxError::Malformed("invalid integer: " + s)
@@ -148,40 +141,99 @@ fn str_slice(s : String, a : Int32, b : Int32) -> String {
 }
 
 ///|
-// Parse "YYYY-MM-DDThh:mm:ss[.fff](Z|+hh:mm|-hh:mm)" to FIT-epoch seconds (UTC).
-fn parse_iso(s : String) -> Int64 {
-  if s.length() < 19 {
-    return 0L
+fn is_digit_at(s : String, i : Int32) -> Bool {
+  if i < 0 || i >= s.length() {
+    false
+  } else {
+    let c = str_slice(s, i, i + 1)
+    c >= "0" && c <= "9"
   }
-  let y = to_int(str_slice(s, 0, 4))
-  let mo = to_int(str_slice(s, 5, 7))
-  let d = to_int(str_slice(s, 8, 10))
-  let h = to_int(str_slice(s, 11, 13))
-  let mi = to_int(str_slice(s, 14, 16))
-  let se = to_int(str_slice(s, 17, 19))
-  let unix = days_from_civil(y, mo, d) * 86400L + h * 3600L + mi * 60L + se
-  // Suffix after position 19 is "Z", ".fffZ", or a +/-hh:mm offset (possibly
-  // after a fraction). A +/- offset denotes local time; subtract it for UTC.
-  let suffix = str_slice(s, 19, s.length())
-  let mut sign = 0L
-  let mut sign_pos = -1
-  let mut k = 0
-  for c in suffix {
-    if c == '+' {
-      sign = 1L
-      sign_pos = k
-    } else if c == '-' {
-      sign = -1L
-      sign_pos = k
-    }
+}
+
+///|
+fn days_in_month(y : Int64, m : Int64) -> Int64 {
+  match m {
+    2L =>
+      if y % 400L == 0L || (y % 4L == 0L && y % 100L != 0L) {
+        29L
+      } else {
+        28L
+      }
+    4L | 6L | 9L | 11L => 30L
+    _ => 31L
+  }
+}
+
+///|
+// Parse "YYYY-MM-DDThh:mm:ss[.fff](Z|+hh:mm|-hh:mm)" to FIT-epoch seconds
+// (UTC). Invalid calendar and timezone values are rejected instead of being
+// normalised into a different timestamp.
+fn parse_iso(s : String) -> Int64 raise TcxError {
+  if s.length() < 20 ||
+    str_slice(s, 4, 5) != "-" ||
+    str_slice(s, 7, 8) != "-" ||
+    str_slice(s, 10, 11) != "T" ||
+    str_slice(s, 13, 14) != ":" ||
+    str_slice(s, 16, 17) != ":" {
+    raise TcxError::Malformed("invalid ISO-8601 timestamp: " + s)
+  }
+  let y = parse_i64_strict(str_slice(s, 0, 4))
+  let mo = parse_i64_strict(str_slice(s, 5, 7))
+  let d = parse_i64_strict(str_slice(s, 8, 10))
+  let h = parse_i64_strict(str_slice(s, 11, 13))
+  let mi = parse_i64_strict(str_slice(s, 14, 16))
+  let se = parse_i64_strict(str_slice(s, 17, 19))
+  if mo < 1L ||
+    mo > 12L ||
+    d < 1L ||
+    d > days_in_month(y, mo) ||
+    h < 0L ||
+    h > 23L ||
+    mi < 0L ||
+    mi > 59L ||
+    se < 0L ||
+    se > 59L {
+    raise TcxError::Malformed("timestamp component out of range: " + s)
+  }
+  let mut k = 19
+  if str_slice(s, k, k + 1) == "." {
     k = k + 1
+    let start = k
+    while k < s.length() && is_digit_at(s, k) {
+      k = k + 1
+    }
+    if k == start {
+      raise TcxError::Malformed("timestamp fraction is empty: " + s)
+    }
   }
+  if k >= s.length() {
+    raise TcxError::Malformed("timestamp timezone is missing: " + s)
+  }
+  let zone = str_slice(s, k, k + 1)
   let mut offset_s = 0L
-  if sign_pos >= 0 {
-    let oh = to_int(str_slice(suffix, sign_pos + 1, sign_pos + 3))
-    let om = to_int(str_slice(suffix, sign_pos + 4, sign_pos + 6))
-    offset_s = sign * (oh * 3600L + om * 60L)
+  if zone == "Z" {
+    if k + 1 != s.length() {
+      raise TcxError::Malformed("trailing data after timestamp: " + s)
+    }
+  } else if zone == "+" || zone == "-" {
+    if k + 6 != s.length() ||
+      str_slice(s, k + 3, k + 4) != ":" ||
+      !is_digit_at(s, k + 1) ||
+      !is_digit_at(s, k + 2) ||
+      !is_digit_at(s, k + 4) ||
+      !is_digit_at(s, k + 5) {
+      raise TcxError::Malformed("invalid timestamp timezone: " + s)
+    }
+    let oh = parse_i64_strict(str_slice(s, k + 1, k + 3))
+    let om = parse_i64_strict(str_slice(s, k + 4, k + 6))
+    if oh > 23L || om > 59L {
+      raise TcxError::Malformed("timestamp timezone out of range: " + s)
+    }
+    offset_s = (if zone == "+" { 1L } else { -1L }) * (oh * 3600L + om * 60L)
+  } else {
+    raise TcxError::Malformed("invalid timestamp timezone: " + s)
   }
+  let unix = days_from_civil(y, mo, d) * 86400L + h * 3600L + mi * 60L + se
   unix - 631065600L - offset_s
 }
 
@@ -220,6 +272,7 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
   let mut lap_dist_opt : Double? = None
   let mut lap_first_ts : Int64? = None
   let mut lap_last_ts : Int64? = None
+  let mut lap_first_dist : Double? = None
   let mut lap_last_dist : Double? = None
   let mut lap_avghr : Int32? = None
   let mut lap_maxhr : Int32? = None
@@ -262,6 +315,7 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
             lap_dist_opt = None
             lap_first_ts = None
             lap_last_ts = None
+            lap_first_dist = None
             lap_last_dist = None
             lap_avghr = None
             lap_maxhr = None
@@ -300,7 +354,12 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
             }
             lap_last_ts = Some(tp_time)
             match tp_dist {
-              Some(d) => lap_last_dist = Some(d)
+              Some(d) => {
+                if lap_first_dist == None {
+                  lap_first_dist = Some(d)
+                }
+                lap_last_dist = Some(d)
+              }
               None => ()
             }
             in_tp = false
@@ -309,9 +368,15 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
             let ldist = match lap_dist_opt {
               Some(d) => d
               None =>
-                match lap_last_dist {
-                  Some(d) => d
-                  None => 0.0
+                match (lap_first_dist, lap_last_dist) {
+                  (Some(first), Some(last)) =>
+                    if last >= first {
+                      last - first
+                    } else {
+                      0.0
+                    }
+                  (None, Some(last)) => last
+                  _ => 0.0
                 }
             }
             let ltime = match lap_time_opt {
@@ -378,6 +443,12 @@ pub fn parse(data : Bytes) -> TcxActivity raise TcxError {
       }
       _ => ()
     }
+  }
+  if activity_count != 1 {
+    raise TcxError::Malformed("exactly one Activity element is required")
+  }
+  if laps.length() == 0 {
+    raise TcxError::Malformed("at least one Lap element is required")
   }
   let (sport, nonstandard) = norm_sport(sport_raw)
   let mut total_dist = 0.0

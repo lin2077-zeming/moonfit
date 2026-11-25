@@ -24,6 +24,8 @@ pub(all) struct RedactReport {
   hr_stripped : Int32
   trimmed_records : Int32
   fields_changed : Int32
+  swc_zero_preserved : Int32
+  swc_nonzero_shifted : Int32
   lat_delta : Int64
   lon_delta : Int64
 }
